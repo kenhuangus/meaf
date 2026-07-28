@@ -1,0 +1,558 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudsecurityalliance.org/meaf/meaf-0.1.0.schema.json",
+  "title": "MEAF Package",
+  "description": "MAESTRO Executable Assurance Framework package schema",
+  "type": "object",
+  "required": [
+    "meaf-version",
+    "package-id",
+    "system",
+    "components",
+    "threats",
+    "attack-paths",
+    "assurance-contracts",
+    "tests",
+    "evidence",
+    "findings",
+    "decisions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "meaf-version": {
+      "type": "string",
+      "pattern": "^0\\.1\\.0$"
+    },
+    "package-id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "system": { "$ref": "#/$defs/system" },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component" },
+      "minItems": 1
+    },
+    "threats": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/threat" },
+      "minItems": 1
+    },
+    "attack-paths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/attack-path" },
+      "minItems": 1
+    },
+    "assurance-contracts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assurance-contract" },
+      "minItems": 1
+    },
+    "tests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/test" },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" },
+      "minItems": 1
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "lifecycle": { "$ref": "#/$defs/lifecycle" }
+  },
+  "$defs": {
+    "maestro-layer": {
+      "type": "string",
+      "enum": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"]
+    },
+    "maestro-layer-title": {
+      "type": "string",
+      "enum": [
+        "L1 Foundation Models",
+        "L2 Data Operations",
+        "L3 Agent Frameworks",
+        "L4 Deployment and Infrastructure",
+        "L5 Evaluation and Observability",
+        "L6 Security and Compliance",
+        "L7 Agent Ecosystem"
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^(sha256:[a-f0-9]{64}|sha256:REPLACE_WITH_[A-Z0-9_]+)$"
+    },
+    "id-ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "system": {
+      "type": "object",
+      "required": [
+        "id",
+        "owner",
+        "deployment",
+        "environment",
+        "data-classes",
+        "users",
+        "trust-boundaries",
+        "critical-outcomes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "deployment": { "type": "string", "minLength": 1 },
+        "environment": { "type": "string", "minLength": 1 },
+        "data-classes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "users": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "trust-boundaries": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "critical-outcomes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "artifact-id",
+        "digest",
+        "provenance-evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "foundation-model-service",
+            "retrieval-collection",
+            "adapter",
+            "prompt",
+            "agent-graph",
+            "tool",
+            "dataset",
+            "policy"
+          ]
+        },
+        "artifact-id": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "provenance-evidence": { "$ref": "#/$defs/id-ref" }
+      }
+    },
+    "temporal-profile": {
+      "type": "object",
+      "required": [
+        "persistence",
+        "activation-latency",
+        "exposure-unit",
+        "compounding-rule",
+        "dormancy",
+        "detection-horizon",
+        "reversibility",
+        "recovery-objective"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "persistence": { "type": "string", "minLength": 1 },
+        "activation-latency": { "type": "string", "minLength": 1 },
+        "exposure-unit": { "type": "string", "minLength": 1 },
+        "compounding-rule": { "type": "string", "minLength": 1 },
+        "dormancy": { "type": "string", "minLength": 1 },
+        "detection-horizon": { "type": "string", "minLength": 1 },
+        "reversibility": { "type": "string", "minLength": 1 },
+        "recovery-objective": { "type": "string", "minLength": 1 }
+      }
+    },
+    "threat": {
+      "type": "object",
+      "required": [
+        "id",
+        "actor",
+        "capabilities",
+        "attack-classes",
+        "objective",
+        "entry-layers",
+        "path",
+        "affected-stakeholders",
+        "outcomes",
+        "temporal-profile"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string", "minLength": 1 },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "attack-classes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "objective": { "type": "string", "minLength": 1 },
+        "entry-layers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/maestro-layer" },
+          "minItems": 1
+        },
+        "path": { "$ref": "#/$defs/id-ref" },
+        "affected-stakeholders": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "outcomes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "temporal-profile": { "$ref": "#/$defs/temporal-profile" }
+      }
+    },
+    "attack-path": {
+      "type": "object",
+      "required": ["id", "nodes", "edges"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^L[1-7]:[a-z0-9][a-z0-9-]*$"
+          },
+          "minItems": 1
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "data-flow",
+              "control-flow",
+              "trust-flow",
+              "privilege-flow",
+              "memory-flow",
+              "evidence-gap"
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "assurance-contract": {
+      "type": "object",
+      "required": [
+        "id",
+        "claim",
+        "subject",
+        "threats",
+        "function",
+        "interruption-point",
+        "interruption-type",
+        "test",
+        "decision-rule",
+        "required-evidence",
+        "cadence",
+        "failure-action",
+        "owner"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "claim": { "type": "string", "minLength": 1 },
+        "subject": { "type": "string", "minLength": 1 },
+        "threats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id-ref" },
+          "minItems": 1
+        },
+        "function": {
+          "type": "string",
+          "enum": ["prevent", "detect", "contain", "recover"]
+        },
+        "interruption-point": {
+          "type": "string",
+          "pattern": "^L[1-7]:[a-z0-9][a-z0-9-]*$"
+        },
+        "interruption-type": {
+          "type": "string",
+          "enum": [
+            "blocks",
+            "detects",
+            "limits",
+            "contains",
+            "restores",
+            "supports-investigation"
+          ]
+        },
+        "test": { "$ref": "#/$defs/id-ref" },
+        "decision-rule": { "type": "object" },
+        "required-evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id-ref" },
+          "minItems": 1
+        },
+        "cadence": { "type": "string", "minLength": 1 },
+        "failure-action": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "test": {
+      "type": "object",
+      "required": [
+        "id",
+        "procedure",
+        "target",
+        "inputs",
+        "oracle",
+        "metrics",
+        "thresholds",
+        "sampling-plan",
+        "expected-result",
+        "test-pack-version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "procedure": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "inputs": { "type": "object" },
+        "oracle": { "type": "string", "minLength": 1 },
+        "metrics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "thresholds": { "type": "object" },
+        "sampling-plan": { "type": "string", "minLength": 1 },
+        "expected-result": { "type": "string", "minLength": 1 },
+        "test-pack-version": { "type": "string", "minLength": 1 },
+        "evidence-max-age": {
+          "type": "string",
+          "format": "duration"
+        },
+        "runner": { "$ref": "#/$defs/runner" }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "required": ["command", "timeout-seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "timeout-seconds": { "type": "integer", "minimum": 1 },
+        "working-directory": { "type": "string", "minLength": 1 }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key-id", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "const": "ed25519" },
+        "key-id": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "required": ["state", "history"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "validated",
+            "assessed",
+            "authorized",
+            "degraded",
+            "suspended",
+            "retired"
+          ]
+        },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/lifecycle-transition" }
+        }
+      }
+    },
+    "lifecycle-transition": {
+      "type": "object",
+      "required": ["from", "to", "at", "actor", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "at": { "type": "string", "format": "date-time" },
+        "actor": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" }
+      }
+    },
+    "model-metadata": {
+      "type": "object",
+      "required": [
+        "evaluator-model",
+        "threshold",
+        "calibration-set",
+        "uncertainty"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "evaluator-model": { "type": "string", "minLength": 1 },
+        "threshold": { "type": "number" },
+        "calibration-set": { "type": "string", "minLength": 1 },
+        "uncertainty": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "class",
+        "subject-digests",
+        "method",
+        "collector",
+        "collected-at",
+        "max-age",
+        "invalidated-at",
+        "result"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "class": {
+          "type": "string",
+          "enum": ["deterministic-observation", "probabilistic-inference"]
+        },
+        "subject-digests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/digest" }
+        },
+        "method": { "type": "string", "minLength": 1 },
+        "collector": { "type": "string", "minLength": 1 },
+        "collected-at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "max-age": {
+          "type": "string",
+          "format": "duration"
+        },
+        "invalidated-at": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "result": {
+          "type": "string",
+          "enum": ["pass", "fail", "indeterminate"]
+        },
+        "signature": { "$ref": "#/$defs/signature" },
+        "model-metadata": { "$ref": "#/$defs/model-metadata" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "class": { "const": "probabilistic-inference" }
+            },
+            "required": ["class"]
+          },
+          "then": {
+            "required": ["model-metadata"]
+          }
+        }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "failed-claim",
+        "severity",
+        "affected-paths",
+        "root-cause",
+        "corrective-action",
+        "due-date",
+        "retest-reference"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "failed-claim": { "$ref": "#/$defs/id-ref" },
+        "severity": { "type": "string", "minLength": 1 },
+        "affected-paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id-ref" },
+          "minItems": 1
+        },
+        "root-cause": { "type": "string", "minLength": 1 },
+        "corrective-action": { "type": "string", "minLength": 1 },
+        "due-date": { "type": "string", "format": "date" },
+        "retest-reference": { "$ref": "#/$defs/id-ref" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "id",
+        "gate-decision",
+        "policy-used",
+        "decision-maker",
+        "residual-risk",
+        "scope",
+        "justification",
+        "expiry",
+        "compensating-controls"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "gate-decision": { "type": "string", "minLength": 1 },
+        "policy-used": { "type": "string", "minLength": 1 },
+        "decision-maker": { "type": "string", "minLength": 1 },
+        "residual-risk": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "justification": { "type": "string", "minLength": 1 },
+        "expiry": { "type": "string", "format": "date" },
+        "compensating-controls": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

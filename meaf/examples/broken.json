@@ -1,0 +1,119 @@
+{
+  "meaf-version": "99.0.0",
+  "package-id": "pkg-broken-example",
+  "system": {
+    "id": "sys-broken",
+    "owner": "test-owner",
+    "deployment": "test",
+    "environment": "dev",
+    "data-classes": ["test-data"],
+    "users": ["tester"],
+    "trust-boundaries": ["external"],
+    "critical-outcomes": ["integrity"]
+  },
+  "components": [
+    {
+      "id": "cmp-broken",
+      "type": "invalid-component-type",
+      "artifact-id": "artifact:broken",
+      "digest": "not-a-valid-digest",
+      "provenance-evidence": "ev-missing-provenance"
+    }
+  ],
+  "threats": [
+    {
+      "id": "thr-broken-001",
+      "actor": "test-actor",
+      "capabilities": ["cap:test"],
+      "attack-classes": ["class:test"],
+      "objective": "obj:test",
+      "entry-layers": ["L1"],
+      "path": "path-missing",
+      "affected-stakeholders": ["users"],
+      "outcomes": ["harm"],
+      "temporal-profile": {
+        "persistence": "model-version-persistent",
+        "activation-latency": "immediate",
+        "exposure-unit": "session",
+        "compounding-rule": "none",
+        "dormancy": "none",
+        "detection-horizon": "single-session",
+        "reversibility": "rollback",
+        "recovery-objective": "restore-state"
+      }
+    }
+  ],
+  "attack-paths": [
+    {
+      "id": "path-broken-001",
+      "nodes": [
+        "L5:downstream-node",
+        "L3:upstream-node"
+      ],
+      "edges": ["data-flow"]
+    },
+    {
+      "id": "path-broken-001",
+      "nodes": ["L1:duplicate"],
+      "edges": ["control-flow"]
+    }
+  ],
+  "assurance-contracts": [
+    {
+      "id": "ac-detect-only",
+      "claim": "Detect only, no contain.",
+      "subject": "cmp-broken",
+      "threats": ["thr-unreferenced-threat"],
+      "function": "detect",
+      "interruption-point": "L5:evaluation",
+      "interruption-type": "detects",
+      "test": "test-missing",
+      "decision-rule": {},
+      "required-evidence": ["ev-missing"],
+      "cadence": "daily",
+      "failure-action": "alert",
+      "owner": "tester"
+    }
+  ],
+  "tests": [
+    {
+      "id": "test-broken",
+      "procedure": "noop",
+      "target": "cmp-broken",
+      "inputs": {},
+      "oracle": "always-pass",
+      "metrics": ["m"],
+      "thresholds": {},
+      "sampling-plan": "all",
+      "expected-result": "pass",
+      "test-pack-version": "1.0.0"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-stale",
+      "class": "probabilistic-inference",
+      "subject-digests": [],
+      "method": "inference-without-metadata",
+      "collector": "tool:test:1.0.0",
+      "collected-at": "2030-01-01T00:00:00Z",
+      "max-age": "P1D",
+      "invalidated-at": "2020-01-01T00:00:00Z",
+      "result": "pass",
+      "signature": "sig:broken"
+    }
+  ],
+  "findings": [
+    {
+      "id": "finding-broken",
+      "failed-claim": "ac-nonexistent",
+      "severity": "high",
+      "affected-paths": ["path-nonexistent"],
+      "root-cause": "test",
+      "corrective-action": "fix",
+      "due-date": "2026-08-01",
+      "retest-reference": "test-nonexistent"
+    }
+  ],
+  "decisions": []
+}
