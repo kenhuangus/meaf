@@ -1,0 +1,23 @@
+{
+  "model-family": "synthetic-research-llm",
+  "provider": "example-lab (synthetic)",
+  "version": "research-llm-v3",
+  "training-data-cutoff": "2025-12-31",
+  "declared-capabilities": [
+    "literature-synthesis",
+    "citation-grounded-answering",
+    "counterfactual-reasoning"
+  ],
+  "evaluation-summary": {
+    "benchmark": "synthetic-epistemic-integrity-suite",
+    "score": 0.91,
+    "evaluated-at": "2026-06-15T00:00:00Z",
+    "notes": "Synthetic evaluation data for MEAF pilot demonstration only."
+  },
+  "supplier-attestation": {
+    "attested-by": "example-lab-assurance-team",
+    "attested-at": "2026-06-20T00:00:00Z",
+    "statement": "Synthetic supplier attestation block for MEAF pilot; not a claim about any real vendor model.",
+    "signature-reference": "attestation-sig-placeholder-001"
+  }
+}

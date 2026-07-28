@@ -139,6 +139,7 @@ def check_transition_guard(
     *,
     now: datetime,
     keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
 ) -> tuple[bool, str]:
     if to_state not in LEGAL_TRANSITIONS.get(from_state, frozenset()):
         return False, f"transition {from_state!r} -> {to_state!r} is not legal"
@@ -147,7 +148,7 @@ def check_transition_guard(
         return True, "containment transition always permitted"
 
     if from_state == "draft" and to_state == "validated":
-        findings = validate_package(package, now=now, keyring=keyring)
+        findings = validate_package(package, now=now, keyring=keyring, root=root)
         blocking = [
             f
             for f in findings
@@ -170,7 +171,7 @@ def check_transition_guard(
         return True, "all contracts have resolving evidence and no failures"
 
     if from_state == "assessed" and to_state == "authorized":
-        findings = validate_package(package, now=now, keyring=keyring)
+        findings = validate_package(package, now=now, keyring=keyring, root=root)
         errors = [f for f in findings if f.severity == "error" and f.level <= 5]
         if errors:
             return False, "errors remain at conformance levels 1-5"
@@ -182,7 +183,12 @@ def check_transition_guard(
         return True, "all authorization guards satisfied"
 
     if from_state == "authorized" and to_state == "degraded":
-        if _digest_changed(package, _bound_digests_from_history(package)):
+        if root is not None:
+            from meaf.attest import has_attestation_drift
+
+            if has_attestation_drift(package, root):
+                return True, "bound artifact digest changed"
+        elif _digest_changed(package, _bound_digests_from_history(package)):
             return True, "bound artifact digest changed"
         if _any_required_evidence_stale_or_invalidated(package, now):
             return True, "required evidence stale or invalidated"
@@ -199,12 +205,13 @@ def legal_next_states(
     *,
     now: datetime,
     keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
 ) -> list[str]:
     state = current_state(package)
     allowed: list[str] = []
     for target in sorted(LEGAL_TRANSITIONS.get(state, frozenset())):
         granted, _ = check_transition_guard(
-            package, state, target, now=now, keyring=keyring
+            package, state, target, now=now, keyring=keyring, root=root
         )
         if granted:
             allowed.append(target)
@@ -219,6 +226,7 @@ def attempt_transition(
     reason: str = "",
     now: datetime | None = None,
     keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
 ) -> tuple[TransitionResult, dict[str, Any]]:
     if now is None:
         now = datetime.now(timezone.utc)
@@ -236,7 +244,7 @@ def attempt_transition(
         return result, package
 
     granted, guard_reason = check_transition_guard(
-        package, from_state, to_state, now=now, keyring=keyring
+        package, from_state, to_state, now=now, keyring=keyring, root=root
     )
     if not granted:
         return (

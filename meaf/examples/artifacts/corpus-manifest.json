@@ -1,0 +1,29 @@
+{
+  "snapshot-id": "research-corpus-2026-q2",
+  "ingested-at": "2026-06-01T12:00:00Z",
+  "sources": [
+    {
+      "source-id": "institutional-policy-archive",
+      "record-count": 1240,
+      "licence": "CC-BY-4.0"
+    },
+    {
+      "source-id": "open-research-abstracts",
+      "record-count": 58200,
+      "licence": "CC0-1.0"
+    },
+    {
+      "source-id": "internal-memo-corpus",
+      "record-count": 310,
+      "licence": "internal-use-only"
+    }
+  ],
+  "exclusion-policy": {
+    "description": "Exclude retracted papers, embargoed memos, and sources without verifiable provenance.",
+    "rules": [
+      "drop-retracted",
+      "drop-embargoed",
+      "require-provenance-metadata"
+    ]
+  }
+}

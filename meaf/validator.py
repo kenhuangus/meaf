@@ -570,6 +570,7 @@ def validate_package(
     now: datetime | None = None,
     schema: dict[str, Any] | None = None,
     keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
 ) -> list[Finding]:
     if now is None:
         now = datetime.now(timezone.utc)
@@ -591,7 +592,7 @@ def validate_package(
 
     from meaf.signing import validate_l4_evidence
 
-    findings.extend(validate_l4_evidence(package, keyring=keyring))
+    findings.extend(validate_l4_evidence(package, keyring=keyring, root=root))
     findings.extend(validate_l5_policy(package, now))
     findings.extend(validate_l6_reproducibility(package))
     return findings

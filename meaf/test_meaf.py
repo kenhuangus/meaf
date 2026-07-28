@@ -11,6 +11,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
+from meaf.attest import check_attestation, compute_digest, update_attestation
 from meaf.lifecycle import attempt_transition, check_transition_guard, current_state
 from meaf.oscal import EXPORT_FILES, export_oscal
 from meaf.signing import load_keyring, sign_evidence, validate_l4_evidence, verify_evidence
@@ -30,7 +31,7 @@ FROZEN_NOW = datetime(2026, 7, 28, 12, 0, 0, tzinfo=timezone.utc)
 
 def test_covert_influence_validates_clean():
     package = load_package(EXAMPLES / "covert-influence.json")
-    findings = validate_package(package, now=FROZEN_NOW)
+    findings = validate_package(package, now=FROZEN_NOW, root=REPO_ROOT)
     errors = [f for f in findings if f.severity == "error"]
     assert errors == [], format_findings(findings)
 
@@ -168,7 +169,7 @@ def test_artifact_binding_unbound_digest_is_l4_error():
             },
         }
     )
-    findings = validate_l4_evidence(package, keyring=None)
+    findings = validate_l4_evidence(package, keyring=None, root=REPO_ROOT)
     binding_errors = [
         f
         for f in findings
@@ -231,43 +232,43 @@ def test_lifecycle_legal_transitions_granted():
     keyring = load_keyring(keyring_path)
 
     granted, _ = check_transition_guard(
-        package, "draft", "validated", now=FROZEN_NOW, keyring=keyring
+        package, "draft", "validated", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert granted
 
     transition, pkg_validated = attempt_transition(
-        package, "validated", now=FROZEN_NOW, keyring=keyring
+        package, "validated", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert transition.granted
 
     granted, _ = check_transition_guard(
-        pkg_validated, "validated", "assessed", now=FROZEN_NOW, keyring=keyring
+        pkg_validated, "validated", "assessed", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert granted
 
     transition, pkg_assessed = attempt_transition(
-        pkg_validated, "assessed", now=FROZEN_NOW, keyring=keyring
+        pkg_validated, "assessed", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert transition.granted
 
     granted, _ = check_transition_guard(
-        pkg_assessed, "assessed", "authorized", now=FROZEN_NOW, keyring=keyring
+        pkg_assessed, "assessed", "authorized", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert granted
 
     transition, pkg_authorized = attempt_transition(
-        pkg_assessed, "authorized", now=FROZEN_NOW, keyring=keyring
+        pkg_assessed, "authorized", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert transition.granted
     assert current_state(pkg_authorized) == "authorized"
 
     granted, _ = check_transition_guard(
-        pkg_authorized, "authorized", "suspended", now=FROZEN_NOW, keyring=keyring
+        pkg_authorized, "authorized", "suspended", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert granted
 
     granted, _ = check_transition_guard(
-        pkg_authorized, "authorized", "retired", now=FROZEN_NOW, keyring=keyring
+        pkg_authorized, "authorized", "retired", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
     )
     assert granted
 
@@ -350,7 +351,7 @@ def test_level5_and_level6_findings_fire():
 def test_validate_package_accepts_keyring_kwarg():
     package = load_package(EXAMPLES / "covert-influence.json")
     keyring = load_keyring(EXAMPLES / "keyring.json")
-    findings = validate_package(package, now=FROZEN_NOW, keyring=keyring)
+    findings = validate_package(package, now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT)
     sig_warnings = [
         f for f in findings if f.message == "signature verification was not performed"
     ]
@@ -384,7 +385,7 @@ def test_unsigned_evidence_with_keyring_reports_unsigned_not_verify_failed():
         "evidence": [unsigned_evidence],
     }
     keyring = load_keyring(EXAMPLES / "keyring.json")
-    findings = validate_l4_evidence(mini_package, keyring=keyring)
+    findings = validate_l4_evidence(mini_package, keyring=keyring, root=REPO_ROOT)
     unsigned_errors = [
         f
         for f in findings
@@ -401,10 +402,141 @@ def test_unsigned_evidence_with_keyring_reports_unsigned_not_verify_failed():
 
 def test_format_findings_groups_levels_4_through_6():
     package = load_package(EXAMPLES / "covert-influence.json")
-    findings = validate_package(package, now=FROZEN_NOW)
+    findings = validate_package(package, now=FROZEN_NOW, root=REPO_ROOT)
     text = format_findings(findings)
     assert "L4:" in text
     for level in (5, 6):
         level_findings = [f for f in findings if f.level == level]
         if level_findings:
             assert f"L{level}:" in text
+
+
+def test_example_artifact_digests_match_recorded_values():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    model_path = REPO_ROOT / "meaf/examples/artifacts/model-card.json"
+    corpus_path = REPO_ROOT / "meaf/examples/artifacts/corpus-manifest.json"
+    model_digest = compute_digest(model_path)
+    corpus_digest = compute_digest(corpus_path)
+
+    components = {c["id"]: c for c in package["components"]}
+    assert components["cmp-foundation-model"]["digest"] == model_digest
+    assert components["cmp-rag-corpus"]["digest"] == corpus_digest
+
+    records = check_attestation(package, REPO_ROOT)
+    assert all(record["status"] == "match" for record in records)
+
+
+def test_attestation_drift_detected_and_validated(tmp_path):
+    import shutil
+
+    work_root = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "meaf/examples", work_root / "meaf/examples")
+    package_path = work_root / "meaf/examples/covert-influence.json"
+    package = load_package(package_path)
+
+    artifact_path = work_root / "meaf/examples/artifacts/model-card.json"
+    artifact_path.write_text(artifact_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    records = check_attestation(package, work_root)
+    drift_records = [r for r in records if r["status"] == "drift"]
+    assert len(drift_records) == 1
+    assert drift_records[0]["component-id"] == "cmp-foundation-model"
+
+    findings = validate_package(package, now=FROZEN_NOW, root=work_root)
+    drift_errors = [
+        f
+        for f in findings
+        if f.level == 4
+        and f.severity == "error"
+        and f.message == "artifact digest drift: cmp-foundation-model"
+    ]
+    assert len(drift_errors) == 1
+
+
+def test_missing_artifact_file_is_warning_not_error(tmp_path):
+    import shutil
+
+    work_root = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "meaf/examples", work_root / "meaf/examples")
+    package_path = work_root / "meaf/examples/covert-influence.json"
+    package = load_package(package_path)
+
+    missing_path = work_root / "meaf/examples/artifacts/model-card.json"
+    missing_path.unlink()
+
+    records = check_attestation(package, work_root)
+    missing_records = [r for r in records if r["status"] == "missing-file"]
+    assert len(missing_records) == 1
+    assert missing_records[0]["component-id"] == "cmp-foundation-model"
+
+    findings = validate_package(package, now=FROZEN_NOW, root=work_root)
+    missing_warnings = [
+        f
+        for f in findings
+        if f.level == 4
+        and f.severity == "warning"
+        and f.object_id == "cmp-foundation-model"
+        and "artifact file missing" in f.message
+    ]
+    assert len(missing_warnings) == 1
+    drift_errors = [f for f in findings if f.level == 4 and f.severity == "error" and "drift" in f.message]
+    assert not drift_errors
+
+
+def test_attest_update_repairs_drift_and_preserves_evidence_bindings(tmp_path):
+    import shutil
+
+    work_root = tmp_path / "repo"
+    shutil.copytree(REPO_ROOT / "meaf/examples", work_root / "meaf/examples")
+    package_path = work_root / "meaf/examples/covert-influence.json"
+    package = load_package(package_path)
+
+    artifact_path = work_root / "meaf/examples/artifacts/model-card.json"
+    artifact_path.write_text(artifact_path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+    old_digest = package["components"][0]["digest"]
+    updated, changes = update_attestation(package, work_root)
+    assert changes
+    assert updated["components"][0]["digest"] != old_digest
+    new_digest = updated["components"][0]["digest"]
+
+    for evidence in updated["evidence"]:
+        for digest in evidence.get("subject-digests", []):
+            assert digest != old_digest
+        if evidence["id"] in ("ev-counterfactual-run-2026-07", "ev-model-attestation"):
+            assert new_digest in evidence["subject-digests"]
+
+    findings = validate_package(updated, now=FROZEN_NOW, root=work_root)
+    assert not has_errors(findings)
+
+
+def test_lifecycle_degraded_requires_attestation_drift_when_root_supplied():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    keyring = load_keyring(EXAMPLES / "keyring.json")
+
+    transition, pkg_validated = attempt_transition(
+        package, "validated", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
+    )
+    assert transition.granted
+    transition, pkg_assessed = attempt_transition(
+        pkg_validated, "assessed", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
+    )
+    assert transition.granted
+    transition, pkg_authorized = attempt_transition(
+        pkg_assessed, "authorized", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
+    )
+    assert transition.granted
+
+    granted, reason = check_transition_guard(
+        pkg_authorized, "authorized", "degraded", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
+    )
+    assert not granted
+    assert "no degradation trigger" in reason
+
+    drifted = copy.deepcopy(pkg_authorized)
+    drifted["components"][0]["digest"] = "sha256:" + "0" * 64
+    granted, reason = check_transition_guard(
+        drifted, "authorized", "degraded", now=FROZEN_NOW, keyring=keyring, root=REPO_ROOT
+    )
+    assert granted
+    assert "bound artifact digest changed" in reason

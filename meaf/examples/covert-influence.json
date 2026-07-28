@@ -30,14 +30,16 @@
       "id": "cmp-foundation-model",
       "type": "foundation-model-service",
       "artifact-id": "artifact:research-llm-v3",
-      "digest": "sha256:REPLACE_WITH_ATTESTED_DIGEST",
+      "digest": "sha256:ae985607ebe5646f87c980036234a25e59a5f4b4ce878e166a0425c51347063b",
+      "artifact-path": "meaf/examples/artifacts/model-card.json",
       "provenance-evidence": "ev-model-attestation"
     },
     {
       "id": "cmp-rag-corpus",
       "type": "retrieval-collection",
       "artifact-id": "artifact:research-corpus-2026-q2",
-      "digest": "sha256:REPLACE_WITH_CORPUS_DIGEST",
+      "digest": "sha256:976b50df35f49bb58502a1f3a8dc18dab63d1c5375478518a378a8e4505d3283",
+      "artifact-path": "meaf/examples/artifacts/corpus-manifest.json",
       "provenance-evidence": "ev-corpus-manifest"
     }
   ],
@@ -201,8 +203,8 @@
       "id": "ev-counterfactual-run-2026-07",
       "class": "probabilistic-inference",
       "subject-digests": [
-        "sha256:REPLACE_WITH_ATTESTED_DIGEST",
-        "sha256:REPLACE_WITH_CORPUS_DIGEST"
+        "sha256:ae985607ebe5646f87c980036234a25e59a5f4b4ce878e166a0425c51347063b",
+        "sha256:976b50df35f49bb58502a1f3a8dc18dab63d1c5375478518a378a8e4505d3283"
       ],
       "method": "paired-counterfactual-longitudinal-evaluation",
       "collector": "tool:epistemic-integrity-harness:1.0.0",
@@ -219,14 +221,14 @@
       "signature": {
         "algorithm": "ed25519",
         "key-id": "tool:epistemic-integrity-harness:1.0.0",
-        "value": "P6VqcPQbJg8a0v++AGc0dnTwGpiVUvW1tFXyN2ro4BlyHInuK+GBbQhsooziF3lR+8h/dOdeHt0BkwAU+4iBAg=="
+        "value": "SepcKvmULfxwxigBQdN+1Z8d4Rx2bsq3bUUASddGXBPap5QFhaDiixX+6I/EEH6oXRzvkXCdKO/PxFrpgzAuCw=="
       }
     },
     {
       "id": "ev-model-attestation",
       "class": "deterministic-observation",
       "subject-digests": [
-        "sha256:REPLACE_WITH_ATTESTED_DIGEST"
+        "sha256:ae985607ebe5646f87c980036234a25e59a5f4b4ce878e166a0425c51347063b"
       ],
       "method": "supplier-attestation-verification",
       "collector": "tool:provenance-verifier:1.0.0",
@@ -237,14 +239,14 @@
       "signature": {
         "algorithm": "ed25519",
         "key-id": "tool:provenance-verifier:1.0.0",
-        "value": "rc7aaJopOddI2CybWe+yv0uBkYXTRBnGaUHTSToUqdPrDgemQrRf7kj+2KUQeeOo0kYmowJ3Fs/UHbD3W3xzBg=="
+        "value": "VvQOjcrPOz5IH1q2R71/QCcnu0/g0h3Qtv/koMWqAEQ4texG0GmXH8RIR2GOKaLpDAFd8MFemQ7aPsVT9KYBCg=="
       }
     },
     {
       "id": "ev-corpus-manifest",
       "class": "deterministic-observation",
       "subject-digests": [
-        "sha256:REPLACE_WITH_CORPUS_DIGEST"
+        "sha256:976b50df35f49bb58502a1f3a8dc18dab63d1c5375478518a378a8e4505d3283"
       ],
       "method": "manifest-hash-verification",
       "collector": "tool:corpus-manifest-verifier:1.0.0",
@@ -255,7 +257,7 @@
       "signature": {
         "algorithm": "ed25519",
         "key-id": "tool:corpus-manifest-verifier:1.0.0",
-        "value": "7c5qSl2bCBi7rqrUIDsDaEXf31EMhoDRyoWTBdvva8wIQd+hNF4QgxRLGLcxqrQKJHofQsGGaL7WHRn3yD6aCw=="
+        "value": "KYYaZqa1+ysxVh0Z6WMKrerE4k+cKTswZozGN/REWEjWELvstYor3jGYCBcKUnHIIqCHJOGm51AasFUmjO6lCg=="
       }
     },
     {
@@ -271,7 +273,7 @@
       "signature": {
         "algorithm": "ed25519",
         "key-id": "tool:containment-playbook:1.0.0",
-        "value": "tLCQbxnw7sa4ymkhbGyMoCmTmLMeunGD19Hg+W55cd2uldZDjuMka+0wAuwLCgqWSufTEQCd6uvZYYW5kbf7BA=="
+        "value": "G8AP2SWndNZHe6afn7tQSg+rlH3rIAuheWX/vDAgLSCEdSQxp9sWhvPnnRrRus58ppeiUA5Vcmi8Tn3EC4yeBA=="
       }
     }
   ],

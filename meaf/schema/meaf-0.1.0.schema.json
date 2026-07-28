@@ -160,6 +160,7 @@
         },
         "artifact-id": { "type": "string", "minLength": 1 },
         "digest": { "$ref": "#/$defs/digest" },
+        "artifact-path": { "type": "string", "minLength": 1 },
         "provenance-evidence": { "$ref": "#/$defs/id-ref" }
       }
     },

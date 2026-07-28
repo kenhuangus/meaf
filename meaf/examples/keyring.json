@@ -1,6 +1,6 @@
 {
-  "tool:epistemic-integrity-harness:1.0.0": "8LkMvDO+rFC/5b8fRxDoxFoL0fUABRuvS1ckkRfaHNs=",
-  "tool:provenance-verifier:1.0.0": "8LkMvDO+rFC/5b8fRxDoxFoL0fUABRuvS1ckkRfaHNs=",
-  "tool:corpus-manifest-verifier:1.0.0": "8LkMvDO+rFC/5b8fRxDoxFoL0fUABRuvS1ckkRfaHNs=",
-  "tool:containment-playbook:1.0.0": "8LkMvDO+rFC/5b8fRxDoxFoL0fUABRuvS1ckkRfaHNs="
+  "tool:containment-playbook:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
+  "tool:corpus-manifest-verifier:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
+  "tool:epistemic-integrity-harness:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
+  "tool:provenance-verifier:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM="
 }

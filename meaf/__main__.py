@@ -8,6 +8,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from meaf.attest import (
+    attestation_exit_code,
+    check_attestation,
+    default_root_for_package,
+    format_attestation_records,
+    update_attestation,
+)
 from meaf.lifecycle import attempt_transition, current_state, format_status, legal_next_states
 from meaf.oscal import export_oscal
 from meaf.signing import load_keyring
@@ -86,12 +93,34 @@ def main(argv: list[str] | None = None) -> int:
         help="Output directory for OSCAL files",
     )
 
+    attest_parser = subparsers.add_parser(
+        "attest",
+        help="Check or update artifact attestations",
+    )
+    attest_parser.add_argument("package", type=Path, help="Path to package JSON")
+    attest_parser.add_argument(
+        "--root",
+        type=Path,
+        help="Repo root for artifact-path resolution (default: derived from package path)",
+    )
+    attest_parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Rewrite recorded digests from computed values",
+    )
+    attest_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON attestation records",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "validate":
         package = load_package(args.package)
         keyring = _resolve_keyring(args.keyring)
-        findings = validate_package(package, keyring=keyring)
+        root = default_root_for_package(args.package)
+        findings = validate_package(package, keyring=keyring, root=root)
         if args.json:
             payload = [f.to_dict() for f in findings]
             print(json.dumps(payload, indent=2))
@@ -123,9 +152,10 @@ def main(argv: list[str] | None = None) -> int:
         package = load_package(args.package)
         now = datetime.now(timezone.utc)
         keyring = _resolve_keyring(args.keyring)
+        root = default_root_for_package(args.package)
         if args.to is None:
             print(format_status(package, now=now))
-            next_states = legal_next_states(package, now=now, keyring=keyring)
+            next_states = legal_next_states(package, now=now, keyring=keyring, root=root)
             if next_states:
                 print(f"Guarded transitions: {', '.join(next_states)}")
             return 0
@@ -136,6 +166,7 @@ def main(argv: list[str] | None = None) -> int:
             reason=args.reason,
             now=now,
             keyring=keyring,
+            root=root,
         )
         status = "granted" if transition.granted else "refused"
         print(
@@ -154,6 +185,28 @@ def main(argv: list[str] | None = None) -> int:
         for path in written:
             print(path)
         return 0
+
+    if args.command == "attest":
+        package = load_package(args.package)
+        root = args.root if args.root is not None else default_root_for_package(args.package)
+        if args.update:
+            updated, changes = update_attestation(package, root)
+            with args.package.open("w", encoding="utf-8") as handle:
+                json.dump(updated, handle, indent=2)
+                handle.write("\n")
+            if changes:
+                for change in changes:
+                    print(change)
+            else:
+                print("No digest changes required.")
+            return 0
+
+        records = check_attestation(package, root)
+        if args.json:
+            print(json.dumps(records, indent=2))
+        else:
+            print(format_attestation_records(records))
+        return attestation_exit_code(records)
 
     return 1
 

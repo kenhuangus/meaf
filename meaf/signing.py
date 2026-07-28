@@ -85,6 +85,7 @@ def component_digests(package: dict[str, Any]) -> set[str]:
 def validate_l4_evidence(
     package: dict[str, Any],
     keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
     digests = component_digests(package)
@@ -144,6 +145,31 @@ def validate_l4_evidence(
                             f"evidence bound to an artifact not in the package "
                             f"inventory: {digest}"
                         ),
+                    )
+                )
+
+    if root is not None:
+        from meaf.attest import check_attestation
+
+        for record in check_attestation(package, root):
+            component_id = record["component-id"]
+            status = record["status"]
+            if status == "drift":
+                findings.append(
+                    Finding(
+                        level=4,
+                        severity="error",
+                        object_id=component_id,
+                        message=f"artifact digest drift: {component_id}",
+                    )
+                )
+            elif status == "missing-file":
+                findings.append(
+                    Finding(
+                        level=4,
+                        severity="warning",
+                        object_id=component_id,
+                        message=f"artifact file missing for {component_id}",
                     )
                 )
 
