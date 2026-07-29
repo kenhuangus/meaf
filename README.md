@@ -4,6 +4,8 @@ MEAF (MAESTRO Executable Assurance Framework) is a machine-readable assurance la
 
 This repository is a pilot implementation, not a certification tool. It evaluates whether claims about a declared system boundary are internally consistent, backed by evidence, and still bound to the artifacts on disk. It does not certify that an agent is safe.
 
+**Extending the codebase:** see [DEVELOPER-GUIDE.md](DEVELOPER-GUIDE.md) for module layout, conformance levels, extension walkthroughs, and contribution practice.
+
 ## Install and quickstart
 
 Requires Python 3.10 or newer (tested on Python 3.13). From the repository root:
@@ -892,6 +894,10 @@ From release **1.0.0**, this project follows [semantic versioning](https://semve
 - **No adversarial robustness evaluation.** The framework checks package consistency and binding, not whether an agent resists attack.
 - **Illustrative thresholds.** Decision-rule numbers in the example (for example `source-inclusion-asymmetry-max: 0.1`) are deployment policy placeholders, not universal safety constants.
 - **No aggregate security score.** By design. A single number would hide whether weak assurance comes from missing threats, stale evidence, or explicitly accepted residual risk recorded in `decisions`.
+
+## Contributing
+
+To add conformance checks, CLI commands, schema fields, runners, lifecycle guards, or OSCAL mappings, read [DEVELOPER-GUIDE.md](DEVELOPER-GUIDE.md). It documents how the code is organized, the invariants enforced by tests, and step-by-step extension walkthroughs. User-facing usage stays in this README.
 
 ## Provenance
 
