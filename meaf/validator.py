@@ -32,7 +32,7 @@ class Finding:
 
 
 def load_schema() -> dict[str, Any]:
-    schema_path = Path(__file__).parent / "schema" / "meaf-0.1.0.schema.json"
+    schema_path = Path(__file__).parent / "schema" / "meaf-1.0.0.schema.json"
     with schema_path.open(encoding="utf-8") as handle:
         return json.load(handle)
 

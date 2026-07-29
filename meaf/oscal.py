@@ -42,7 +42,7 @@ def _metadata(package: dict[str, Any], title: str) -> dict[str, Any]:
     return {
         "title": title,
         "last-modified": _newest_evidence_timestamp(package),
-        "version": package.get("meaf-version", "0.1.0"),
+        "version": package.get("meaf-version", "1.0.0"),
         "oscal-version": OSCAL_VERSION,
     }
 

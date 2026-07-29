@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloudsecurityalliance.org/meaf/meaf-0.1.0.schema.json",
+  "$id": "https://cloudsecurityalliance.org/meaf/meaf-1.0.0.schema.json",
   "title": "MEAF Package",
   "description": "MAESTRO Executable Assurance Framework package schema",
   "type": "object",
@@ -21,7 +21,7 @@
   "properties": {
     "meaf-version": {
       "type": "string",
-      "pattern": "^0\\.1\\.0$"
+      "pattern": "^1\\.0\\.0$"
     },
     "package-id": {
       "type": "string",

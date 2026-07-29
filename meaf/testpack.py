@@ -14,7 +14,7 @@ from typing import Any
 from meaf.signing import private_key_from_pem, sign_evidence
 from meaf.validator import parse_datetime
 
-COLLECTOR = "meaf-testpack:0.1.0"
+COLLECTOR = "meaf-testpack:1.0.0"
 
 
 @dataclass

@@ -1,5 +1,5 @@
 {
-  "meaf-version": "0.1.0",
+  "meaf-version": "1.0.0",
   "package-id": "pkg-covert-influence-research-agent",
   "system": {
     "id": "sys-research-agent",

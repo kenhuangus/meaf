@@ -26,7 +26,7 @@ meaf-repo/
 ├── requirements.txt                   # Python dependencies (cryptography, jsonschema, pytest)
 ├── .gitignore                         # Ignores __pycache__, *.pem, *.key, .pytest_cache/
 ├── meaf/
-│   ├── __init__.py                    # Package version string
+│   ├── __init__.py                    # Public API exports and version
 │   ├── __main__.py                    # CLI entry point (python -m meaf)
 │   ├── validator.py                   # Conformance levels L1-L6
 │   ├── signing.py                     # Ed25519 evidence signing and L4 checks
@@ -34,9 +34,9 @@ meaf-repo/
 │   ├── testpack.py                    # Test runner execution and evidence emission
 │   ├── lifecycle.py                   # Package lifecycle state machine
 │   ├── oscal.py                       # OSCAL 1.1.2 export
-│   ├── test_meaf.py                   # Pytest suite (23 tests)
+│   ├── test_meaf.py                   # Pytest suite (27 tests)
 │   ├── schema/
-│   │   └── meaf-0.1.0.schema.json     # JSON Schema for package structure
+│   │   └── meaf-1.0.0.schema.json     # JSON Schema for package structure
 │   └── examples/
 │       ├── covert-influence.json      # Complete reference package
 │       ├── broken.json                # Intentionally invalid package for error demos
@@ -50,7 +50,7 @@ meaf-repo/
 
 ## Concepts and object model
 
-A MEAF package contains nine linked object types. Each type has required fields defined in `meaf/schema/meaf-0.1.0.schema.json`.
+A MEAF package contains nine linked object types. Each type has required fields defined in `meaf/schema/meaf-1.0.0.schema.json`.
 
 ### system
 
@@ -215,7 +215,7 @@ Test test-counterfactual-symmetry-001: runner=pass
     "sha256:ae985607ebe5646f87c980036234a25e59a5f4b4ce878e166a0425c51347063b"
   ],
   "method": "test-pack-execution",
-  "collector": "meaf-testpack:0.1.0",
+  "collector": "meaf-testpack:1.0.0",
   "collected-at": "2026-07-29T01:42:03Z",
   "max-age": "P30D",
   "invalidated-at": null,
@@ -370,7 +370,7 @@ Exit code `0`. Seven OSCAL 1.1.2 JSON files with deterministic UUIDs derived fro
 Start from `meaf/examples/covert-influence.json`. Change these first:
 
 1. **`package-id` and `system`** to describe your boundary.
-2. **`components`** with real `artifact-path` files and digests from `python -c "from meaf.attest import compute_digest; from pathlib import Path; print(compute_digest(Path('your/file')))"`.
+2. **`components`** with real `artifact-path` files and digests from `python -c "from meaf import compute_digest; from pathlib import Path; print(compute_digest(Path('your/file')))"`.
 3. **`threats` and `attack-paths`** for your MAESTRO-aligned scenarios.
 4. **`assurance-contracts`** linking threats to tests and required evidence.
 5. **`tests`** with `runner` commands once you have executable checks.
@@ -393,7 +393,7 @@ L1:
   [error] components/0/type: 'invalid-component-type' is not one of ['foundation-model-service', 'retrieval-collection', 'adapter', 'prompt', 'agent-graph', 'tool', 'dataset', 'policy']
   [error] evidence/0: 'model-metadata' is a required property
   [error] evidence/0/signature: 'sig:broken' is not of type 'object'
-  [error] meaf-version: '99.0.0' does not match '^0\\.1\\.0$'
+  [error] meaf-version: '99.0.0' does not match '^1\\.0\\.0$'
 L2:
   [error] path-broken-001: duplicate id in attack-paths (2 objects)
   [error] thr-broken-001: dangling reference path='path-missing' (no attack-paths with that id)
@@ -535,7 +535,7 @@ python -m meaf run-tests meaf/examples/covert-influence.json \
   --output updated-package.json
 ```
 
-The signature `key-id` defaults to the evidence `collector` field (`meaf-testpack:0.1.0` for harness-emitted evidence).
+The signature `key-id` defaults to the evidence `collector` field (`meaf-testpack:1.0.0` for harness-emitted evidence).
 
 ### Verify with `validate --keyring`
 
@@ -552,7 +552,7 @@ To interoperate with another implementation, sign and verify over the same bytes
 3. Encode as UTF-8.
 4. Sign or verify with Ed25519.
 
-This matches `meaf.signing.canonical_payload()`.
+This matches `canonical_payload()` from `meaf`.
 
 ## Attestation
 
@@ -624,7 +624,7 @@ Pass `--keyring` to `validate` to enable L4 signature checks. Without it, L4 emi
 
 | Level | Checks | Failure example |
 |-------|--------|-----------------|
-| L1 | JSON Schema syntactic validation | `'99.0.0' does not match '^0\\.1\\.0$'` |
+| L1 | JSON Schema syntactic validation | `'99.0.0' does not match '^1\\.0\\.0$'` |
 | L2 | Referential integrity (ids resolve uniquely) | `dangling reference path='path-missing' (no attack-paths with that id)` |
 | L3 | Semantic rules (layer-ordered paths, timestamps, contract coverage, freshness warnings) | `attack-path lacks assurance-contract with interruption-type blocks or detects` |
 | L4 | Signature verification (with keyring), evidence digest binding, artifact attestation | `artifact digest drift: cmp-foundation-model` |
@@ -715,17 +715,29 @@ python -m meaf attest [-h] [--root ROOT] [--update] [--json] package
 
 ## Library use
 
-Importable entry points:
+Import from the `meaf` package directly. Submodule paths (`meaf.validator`, `meaf.attest`, and so on) are internal and not covered by the compatibility promise.
 
 ```python
 from pathlib import Path
 from datetime import datetime, timezone
-from meaf.validator import load_package, validate_package, format_findings, has_errors
-from meaf.attest import check_attestation, update_attestation
-from meaf.testpack import run_tests
-from meaf.lifecycle import attempt_transition, current_state, legal_next_states
-from meaf.oscal import export_oscal
-from meaf.signing import sign_evidence, verify_evidence, load_keyring
+from meaf import (
+    load_package,
+    validate_package,
+    format_findings,
+    has_errors,
+    check_attestation,
+    update_attestation,
+    compute_digest,
+    run_tests,
+    attempt_transition,
+    current_state,
+    legal_next_states,
+    export_oscal,
+    sign_evidence,
+    verify_evidence,
+    load_keyring,
+    canonical_payload,
+)
 ```
 
 ### `validate_package`
@@ -798,8 +810,7 @@ verify_evidence(evidence: dict, keyring: dict[str, bytes]) -> bool
 
 ```python
 from pathlib import Path
-from meaf.validator import load_package, validate_package, format_findings
-from meaf.signing import load_keyring
+from meaf import load_package, validate_package, format_findings, load_keyring
 
 root = Path(".")
 package = load_package(root / "meaf/examples/covert-influence.json")
@@ -822,10 +833,11 @@ Run a single test:
 python -m pytest meaf/test_meaf.py::test_broken_has_errors_at_each_level -q
 ```
 
-### What the 23 tests cover
+### What the 27 tests cover
 
 | Area | Tests |
 |------|-------|
+| Public API stability | `test_public_api_surface`, `test_public_callable_signatures`, `test_schema_version_matches_package_version`, `test_frozen_wire_contracts` |
 | Validation | `test_covert_influence_validates_clean`, `test_broken_has_errors_at_each_level`, `test_stale_evidence_is_warning_not_error`, `test_injectable_now_changes_freshness_outcome`, `test_level5_and_level6_findings_fire`, `test_format_findings_groups_levels_4_through_6`, `test_validate_package_accepts_keyring_kwarg` |
 | Evidence freshness | `test_evidence_freshness_frozen_now` |
 | Signing / L4 | `test_ed25519_signature_round_trip`, `test_missing_keyring_produces_one_l4_warning`, `test_artifact_binding_unbound_digest_is_l4_error`, `test_unsigned_evidence_with_keyring_reports_unsigned_not_verify_failed` |
@@ -851,9 +863,31 @@ Two issues this codebase already encountered generalize to any assurance harness
 
 Check both when adding rules or runners.
 
+## Stability and versioning
+
+From release **1.0.0**, this project follows [semantic versioning](https://semver.org/). The public API, CLI, and wire formats listed below are stable within a major version.
+
+**Covered by the compatibility promise**
+
+- The names exported from the `meaf` package (`meaf.__all__`) and their call signatures
+- CLI subcommands, flags, and exit codes
+- JSON output shapes of `validate --json` and `attest --json`
+- The MEAF package JSON schema (`meaf-version` and `meaf/schema/meaf-1.0.0.schema.json`)
+- The canonical signed evidence payload format (`canonical_payload`)
+- The test-runner stdout contract (`{"result": ..., "metrics": {...}}`)
+
+**Not covered** (may change in any release)
+
+- Submodule import paths — use `from meaf import ...`, not `from meaf.validator import ...`
+- Human-readable message strings in findings, CLI output, and lifecycle reasons
+- Private helpers prefixed with `_`
+- OSCAL export field mappings and JSON structure beyond output file names
+
+**Breaking changes** require a major version bump. Package format breaks additionally require a `meaf-version` schema bump and an updated `pattern` in the JSON Schema.
+
 ## Limitations and non-goals
 
-- **Pilot status.** Schema version `0.1.0`, API unstable, example data synthetic.
+- **Pilot status.** Example data is synthetic; the framework evaluates package consistency, not real-world safety.
 - **OSCAL export only.** No importer; round-tripping from OSCAL back into MEAF is not supported.
 - **No adversarial robustness evaluation.** The framework checks package consistency and binding, not whether an agent resists attack.
 - **Illustrative thresholds.** Decision-rule numbers in the example (for example `source-inclusion-asymmetry-max: 0.1`) are deployment policy placeholders, not universal safety constants.

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import sys
 import tempfile
+from dataclasses import fields
 from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
+import meaf
 from meaf.attest import check_attestation, compute_digest, update_attestation
 from meaf.lifecycle import attempt_transition, check_transition_guard, current_state
 from meaf.oscal import EXPORT_FILES, export_oscal
@@ -21,12 +24,130 @@ from meaf.validator import (
     format_findings,
     has_errors,
     load_package,
+    load_schema,
     validate_package,
 )
 
 EXAMPLES = Path(__file__).parent / "examples"
 REPO_ROOT = Path(__file__).parent.parent
 FROZEN_NOW = datetime(2026, 7, 28, 12, 0, 0, tzinfo=timezone.utc)
+
+PUBLIC_API_EXPORTS = frozenset(
+    {
+        "load_package",
+        "validate_package",
+        "format_findings",
+        "has_errors",
+        "Finding",
+        "check_attestation",
+        "update_attestation",
+        "compute_digest",
+        "default_root_for_package",
+        "run_tests",
+        "TestRunResult",
+        "attempt_transition",
+        "current_state",
+        "legal_next_states",
+        "TransitionResult",
+        "export_oscal",
+        "sign_evidence",
+        "verify_evidence",
+        "load_keyring",
+        "canonical_payload",
+    }
+)
+
+EXPECTED_CALLABLE_SIGNATURES: dict[str, tuple[list[str], list[str]]] = {
+    "validate_package": (["package"], ["now", "schema", "keyring", "root"]),
+    "check_attestation": (["package", "root"], []),
+    "run_tests": (["package"], ["test_id", "sign_with", "now", "cwd"]),
+    "attempt_transition": (
+        ["package", "to_state"],
+        ["actor", "reason", "now", "keyring", "root"],
+    ),
+    "export_oscal": (["package", "out_dir"], []),
+    "sign_evidence": (["evidence", "private_key"], ["key_id"]),
+    "verify_evidence": (["evidence", "keyring"], []),
+}
+
+ATTESTATION_RECORD_KEYS = frozenset(
+    {
+        "artifact-path",
+        "component-id",
+        "computed-digest",
+        "recorded-digest",
+        "status",
+    }
+)
+
+FINDING_FIELD_NAMES = frozenset({"level", "message", "object_id", "severity"})
+
+CANONICAL_PAYLOAD_FIXTURE = (
+    {
+        "collector": "tool:example:1.0.0",
+        "id": "ev-canonical-fixture",
+        "result": "pass",
+        "signature": {
+            "algorithm": "ed25519",
+            "key-id": "tool:example:1.0.0",
+            "value": "ignored-for-canonicalization",
+        },
+    },
+    b'{"collector":"tool:example:1.0.0","id":"ev-canonical-fixture","result":"pass"}',
+)
+
+
+def test_public_api_surface():
+    assert frozenset(meaf.__all__) == PUBLIC_API_EXPORTS
+    for name in meaf.__all__:
+        obj = getattr(meaf, name)
+        if name in ("Finding", "TestRunResult", "TransitionResult"):
+            assert inspect.isclass(obj), f"{name} should be a class"
+        else:
+            assert callable(obj), f"{name} should be callable"
+
+
+def test_public_callable_signatures():
+    for func_name, (positional, keyword_only) in EXPECTED_CALLABLE_SIGNATURES.items():
+        func = getattr(meaf, func_name)
+        sig = inspect.signature(func)
+        pos_params = [
+            name
+            for name, param in sig.parameters.items()
+            if param.kind
+            in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        ]
+        kwonly_params = [
+            name
+            for name, param in sig.parameters.items()
+            if param.kind == inspect.Parameter.KEYWORD_ONLY
+        ]
+        assert pos_params == positional, func_name
+        assert kwonly_params == keyword_only, func_name
+
+
+def test_schema_version_matches_package_version():
+    assert meaf.SCHEMA_VERSION == "1.0.0"
+    assert meaf.__version__ == "1.0.0"
+    package = load_package(EXAMPLES / "covert-influence.json")
+    assert package["meaf-version"] == meaf.SCHEMA_VERSION
+    schema = load_schema()
+    pattern = schema["properties"]["meaf-version"]["pattern"]
+    assert pattern == "^1\\.0\\.0$"
+
+
+def test_frozen_wire_contracts():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    records = check_attestation(package, REPO_ROOT)
+    assert records
+    for record in records:
+        assert frozenset(record.keys()) == ATTESTATION_RECORD_KEYS
+
+    finding_fields = {field.name for field in fields(meaf.Finding)}
+    assert finding_fields == FINDING_FIELD_NAMES
+
+    evidence, expected_bytes = CANONICAL_PAYLOAD_FIXTURE
+    assert meaf.canonical_payload(evidence) == expected_bytes
 
 
 def test_covert_influence_validates_clean():
