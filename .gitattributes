@@ -1,0 +1,12 @@
+# Artifact digests are the plain SHA-256 of the file's bytes. Git must not
+# rewrite line endings on checkout, or a clone on a CRLF platform would report
+# digest drift for artifacts nobody touched. This replaces the newline
+# normalisation the digest function used to do, which had the worse property of
+# making sha256:<hex> not actually the SHA-256 of the artifact.
+* -text
+
+*.py text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf

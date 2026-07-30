@@ -1,0 +1,66 @@
+{
+  "policy-id": "meaf-default",
+  "policy-version": "2.0.0",
+  "description": "Default MEAF policy bundle. Conservative where the manuscript is prescriptive, permissive where the manuscript leaves the choice to the adopting organisation. Appendix A.3 names the high tier explicitly -- \"For each high-impact path, deployment policy should require at least one currently verified control before the harmful outcome and one verified containment or recovery mechanism\" -- so critical and high both require a passing contract, not merely a declared control. Copy this file, change it, and pass it with --policy rather than editing the shipped one.",
+  "permitted-digest-algorithms": [
+    "sha256",
+    "sha384",
+    "sha512"
+  ],
+  "approved-evidence-methods": [],
+  "interruption-requirements": {
+    "critical": {
+      "require-before-outcome": [
+        "blocks",
+        "detects"
+      ],
+      "require-recovery": [
+        "contains",
+        "restores"
+      ],
+      "require-contract-pass": true
+    },
+    "high": {
+      "require-before-outcome": [
+        "blocks",
+        "detects"
+      ],
+      "require-recovery": [
+        "contains",
+        "restores"
+      ],
+      "require-contract-pass": true
+    },
+    "medium": {
+      "require-before-outcome": [
+        "blocks",
+        "detects",
+        "limits"
+      ],
+      "require-recovery": [],
+      "require-contract-pass": false
+    },
+    "low": {
+      "require-before-outcome": [],
+      "require-recovery": [],
+      "require-contract-pass": false
+    }
+  },
+  "indeterminate-handling": {
+    "critical": "fail-closed",
+    "high": "fail-closed",
+    "medium": "require-review",
+    "low": "require-review"
+  },
+  "maximum-exception-age-days": 180,
+  "block-gate-on-open-finding-severity": [
+    "critical",
+    "high"
+  ],
+  "require-authorization-decision": true,
+  "probabilistic-evidence": {
+    "permitted-for-gate": true,
+    "require-decision-rule": true,
+    "maximum-gating-share": 0.5
+  }
+}

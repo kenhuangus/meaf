@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudsecurityalliance.org/meaf/meaf-policy-2.0.0.schema.json",
+  "title": "MEAF Policy Bundle",
+  "description": "Cross-object conformance and gate rules that JSON Schema alone cannot enforce (manuscript appendix A.4). The policy bundle is the only place where an organisation's risk choices live; the validator and gate read them as data.",
+  "type": "object",
+  "required": [
+    "policy-id",
+    "policy-version",
+    "permitted-digest-algorithms",
+    "approved-evidence-methods",
+    "interruption-requirements",
+    "indeterminate-handling",
+    "maximum-exception-age-days",
+    "block-gate-on-open-finding-severity",
+    "require-authorization-decision",
+    "probabilistic-evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "policy-id": { "type": "string", "minLength": 1 },
+    "policy-version": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "permitted-digest-algorithms": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["sha256", "sha384", "sha512"] },
+      "minItems": 1
+    },
+    "approved-evidence-methods": {
+      "description": "Evidence collected by a method outside this list is an L4 error. An empty list declares that no method policy is in force, which raises one L4 warning rather than silently passing.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "interruption-requirements": {
+      "description": "Per attack-path impact tier, the interruption types that must be present before the harmful outcome and for recovery.",
+      "type": "object",
+      "required": ["critical", "high", "medium", "low"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(critical|high|medium|low)$": {
+          "type": "object",
+          "required": [
+            "require-before-outcome",
+            "require-recovery",
+            "require-contract-pass"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "require-before-outcome": {
+              "description": "At least one control on the path must carry one of these interruption types. An empty list imposes no requirement.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "blocks",
+                  "detects",
+                  "limits",
+                  "contains",
+                  "restores",
+                  "supports-investigation"
+                ]
+              }
+            },
+            "require-recovery": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "blocks",
+                  "detects",
+                  "limits",
+                  "contains",
+                  "restores",
+                  "supports-investigation"
+                ]
+              }
+            },
+            "require-contract-pass": {
+              "description": "When true, the covering control must also have an assurance contract in state pass; a merely declared control does not count.",
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "indeterminate-handling": {
+      "description": "What the gate does with an indeterminate contract, by the impact of the paths it covers. Appendix A.5 requires this choice to be explicit.",
+      "type": "object",
+      "required": ["critical", "high", "medium", "low"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(critical|high|medium|low)$": {
+          "type": "string",
+          "enum": ["fail-closed", "require-review", "permit"]
+        }
+      }
+    },
+    "maximum-exception-age-days": {
+      "description": "Age at which an exception or not-applicable decision stops counting, measured from its recorded expiry window.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "block-gate-on-open-finding-severity": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["critical", "high", "medium", "low"]
+      }
+    },
+    "require-authorization-decision": { "type": "boolean" },
+    "probabilistic-evidence": {
+      "type": "object",
+      "required": ["permitted-for-gate", "require-decision-rule"],
+      "additionalProperties": false,
+      "properties": {
+        "permitted-for-gate": {
+          "description": "When false, a contract whose pass depends on probabilistic inference cannot reach pass; it becomes indeterminate.",
+          "type": "boolean"
+        },
+        "require-decision-rule": {
+          "description": "Appendix A.5: probabilistic evidence without an accepted decision rule is indeterminate.",
+          "type": "boolean"
+        },
+        "maximum-gating-share": {
+          "description": "Optional ceiling on the fraction of gating contracts that may depend on probabilistic inference.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

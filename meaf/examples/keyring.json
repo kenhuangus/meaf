@@ -1,6 +1,8 @@
 {
-  "tool:containment-playbook:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
-  "tool:corpus-manifest-verifier:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
-  "tool:epistemic-integrity-harness:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM=",
-  "tool:provenance-verifier:1.0.0": "CYajpFhDwCVUHoI9tSLEHJ+7ES0AdvIgURcDv+WWayM="
+  "tool:containment-playbook:1.0.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg=",
+  "tool:corpus-manifest-verifier:1.0.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg=",
+  "tool:epistemic-integrity-harness:1.0.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg=",
+  "tool:memory-integrity-harness:1.2.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg=",
+  "tool:provenance-verifier:1.0.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg=",
+  "tool:recovery-playbook:1.1.0": "AFVebct31je6XB0PdGdzIc0f5pG4cMlW49AzAr5Rdqg="
 }

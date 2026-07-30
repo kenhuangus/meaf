@@ -1,6 +1,15 @@
-﻿__pycache__/
+__pycache__/
 *.pyc
 *.pem
 *.key
 .pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
 msg.tmp
+manuscript.md

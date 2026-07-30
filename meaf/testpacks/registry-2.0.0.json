@@ -1,0 +1,127 @@
+{
+  "registry-version": "2.0.0",
+  "description": "The nine standard MEAF test packs of manuscript appendix A.7. A schema becomes operationally useful when common threats have reusable, versioned test packs. Each entry names the MAESTRO layers the pack primarily exercises and the evaluations a conforming pack must perform. Packs are contracts about coverage, not implementations: a package cites a pack and pins its own runner version.",
+  "packs": [
+    {
+      "id": "pack-model-provenance-and-latent-behavior",
+      "title": "Model provenance and latent behavior",
+      "primary-layers": ["L1", "L7"],
+      "adversarial": true,
+      "required-evaluation": [
+        "signature and lineage verification",
+        "trigger search",
+        "targeted-behavior probes",
+        "fine-tuning persistence checks",
+        "supplier-change invalidation"
+      ]
+    },
+    {
+      "id": "pack-training-and-retrieval-data-integrity",
+      "title": "Training and retrieval data integrity",
+      "primary-layers": ["L1", "L2"],
+      "adversarial": true,
+      "required-evaluation": [
+        "dataset and corpus manifests",
+        "source ownership changes",
+        "poisoned-document insertion",
+        "retrieval influence",
+        "source suppression",
+        "rollback"
+      ]
+    },
+    {
+      "id": "pack-memory-to-goal-corruption",
+      "title": "Memory-to-goal corruption",
+      "primary-layers": ["L1", "L2", "L3"],
+      "adversarial": true,
+      "required-evaluation": [
+        "cross-session poison write",
+        "retrieval",
+        "plan influence",
+        "harmful-action gating",
+        "memory quarantine",
+        "clean replay"
+      ]
+    },
+    {
+      "id": "pack-goal-and-constraint-drift",
+      "title": "Goal and constraint drift",
+      "primary-layers": ["L1", "L3", "L5"],
+      "adversarial": true,
+      "required-evaluation": [
+        "rotating founding-constraint probes",
+        "long-context and compaction cases",
+        "multi-session drift",
+        "false-positive budget",
+        "escalation"
+      ]
+    },
+    {
+      "id": "pack-tool-and-permission-safety",
+      "title": "Tool and permission safety",
+      "primary-layers": ["L3", "L4", "L6"],
+      "adversarial": true,
+      "required-evaluation": [
+        "node-scoped authorization",
+        "unsafe composition",
+        "permission creep",
+        "sandbox escape attempts",
+        "revocation",
+        "fail-closed behavior"
+      ]
+    },
+    {
+      "id": "pack-observability-integrity",
+      "title": "Observability integrity",
+      "primary-layers": ["L5", "L6"],
+      "adversarial": true,
+      "required-evaluation": [
+        "log omission and mutation",
+        "recursive injection into guardian agents",
+        "independent telemetry comparison",
+        "alert delivery",
+        "forensic reconstruction"
+      ]
+    },
+    {
+      "id": "pack-registry-and-delegation-trust",
+      "title": "Registry and delegation trust",
+      "primary-layers": ["L3", "L7"],
+      "adversarial": true,
+      "required-evaluation": [
+        "agent-card and tool-description poisoning",
+        "signature failure",
+        "recipient substitution",
+        "transitive delegation",
+        "trust revocation"
+      ]
+    },
+    {
+      "id": "pack-covert-longitudinal-influence",
+      "title": "Covert longitudinal influence",
+      "primary-layers": ["L1", "L2", "L5", "L7"],
+      "adversarial": true,
+      "required-evaluation": [
+        "paired counterfactual prompts",
+        "source-balance perturbations",
+        "repeated-interaction stance analysis",
+        "calibrated uncertainty",
+        "independent expert adjudication"
+      ]
+    },
+    {
+      "id": "pack-recovery-readiness",
+      "title": "Recovery readiness",
+      "primary-layers": ["L1", "L2", "L3", "L4", "L5", "L6", "L7"],
+      "adversarial": false,
+      "required-evaluation": [
+        "known-good checkpoint validation",
+        "dependency-aware invalidation",
+        "memory and corpus reconstruction",
+        "credential rotation",
+        "replay",
+        "return-to-service criteria"
+      ]
+    }
+  ]
+}

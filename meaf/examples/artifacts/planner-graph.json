@@ -1,0 +1,20 @@
+{
+  "graph-name": "ops-assistant-planner",
+  "version": "2026.06",
+  "note": "Synthetic artifact for the MEAF pilot. Not a production agent graph.",
+  "nodes": [
+    { "id": "intake", "kind": "parse-request" },
+    { "id": "recall", "kind": "memory-retrieval", "reads": ["agent-memory"] },
+    { "id": "plan", "kind": "plan-synthesis" },
+    { "id": "act", "kind": "tool-invocation", "authorization": "node-scoped" }
+  ],
+  "edges": [
+    { "from": "intake", "to": "recall" },
+    { "from": "recall", "to": "plan" },
+    { "from": "plan", "to": "act" }
+  ],
+  "constraints": {
+    "tool-authorization": "per-node allow-list, no inheritance",
+    "plan-mutation-from-memory": "advisory-only, requires operator confirmation for privileged tools"
+  }
+}

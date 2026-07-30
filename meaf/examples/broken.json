@@ -3,13 +3,16 @@
   "package-id": "pkg-broken-example",
   "system": {
     "id": "sys-broken",
-    "owner": "test-owner",
+    "owner": "role-nonexistent",
     "deployment": "test",
     "environment": "dev",
     "data-classes": ["test-data"],
     "users": ["tester"],
     "trust-boundaries": ["external"],
-    "critical-outcomes": ["integrity"]
+    "critical-outcomes": ["integrity"],
+    "responsible-roles": [
+      { "id": "role-tester", "title": "Tester" }
+    ]
   },
   "components": [
     {
@@ -25,67 +28,127 @@
       "id": "thr-broken-001",
       "actor": "test-actor",
       "capabilities": ["cap:test"],
+      "preconditions": ["none"],
       "attack-classes": ["class:test"],
       "objective": "obj:test",
       "entry-layers": ["L1"],
       "path": "path-missing",
+      "target": "cmp-does-not-exist",
       "affected-stakeholders": ["users"],
       "outcomes": ["harm"],
       "temporal-profile": {
-        "persistence": "model-version-persistent",
-        "activation-latency": "immediate",
+        "persistence": "forever",
+        "activation-latency": "eventually",
         "exposure-unit": "session",
         "compounding-rule": "none",
         "dormancy": "none",
-        "detection-horizon": "single-session",
+        "detection-horizon": { "minimum-observations": 1 },
         "reversibility": "rollback",
-        "recovery-objective": "restore-state"
+        "recovery-objective": {
+          "max-containment-time": "PT1H",
+          "max-acceptable-loss": "unspecified"
+        }
+      }
+    },
+    {
+      "id": "thr-uncontracted-002",
+      "actor": "test-actor",
+      "capabilities": ["cap:test"],
+      "stage": "runtime",
+      "preconditions": ["none"],
+      "attack-classes": ["class:test"],
+      "objective": "obj:test",
+      "entry-layers": ["L1"],
+      "path": "path-broken-001",
+      "target": "sys-broken",
+      "affected-stakeholders": ["users"],
+      "outcomes": ["harm"],
+      "temporal-profile": {
+        "persistence": "cross-session",
+        "activation-latency": "immediate",
+        "exposure-unit": "turn",
+        "compounding-rule": "none",
+        "dormancy": "none",
+        "detection-horizon": { "minimum-observations": 1 },
+        "reversibility": "unknown",
+        "recovery-objective": {
+          "max-containment-time": "PT1H",
+          "max-acceptable-loss": "unspecified"
+        }
       }
     }
   ],
   "attack-paths": [
     {
       "id": "path-broken-001",
-      "nodes": [
-        "L5:downstream-node",
-        "L3:upstream-node"
-      ],
-      "edges": ["data-flow"]
+      "nodes": ["L5:downstream-node", "L3:upstream-node"],
+      "edges": ["data-flow", "control-flow", "trust-flow"],
+      "impact": "critical"
     },
     {
       "id": "path-broken-001",
-      "nodes": ["L1:duplicate"],
-      "edges": ["control-flow"]
+      "nodes": ["L1:duplicate-id", "L2:second-node"],
+      "edges": ["control-flow"],
+      "impact": "low"
+    }
+  ],
+  "control-implementations": [
+    {
+      "id": "ctl-broken",
+      "description": "A detect control that claims to contain.",
+      "function": "detect",
+      "owner": "role-ghost",
+      "implementation-location": "L5:evaluation",
+      "dependencies": ["cmp-not-declared"],
+      "failure-behavior": "fail-open",
+      "attack-paths": ["path-broken-001"],
+      "interruption-point": "L4:not-a-node-on-that-path",
+      "interruption-type": "contains"
+    },
+    {
+      "id": "ctl-unverified",
+      "description": "A control no assurance contract verifies.",
+      "function": "prevent",
+      "owner": "role-tester",
+      "implementation-location": "L3:upstream-node",
+      "dependencies": [],
+      "enforcement-mode": "advisory",
+      "failure-behavior": "fail-open",
+      "attack-paths": ["path-broken-001"],
+      "interruption-point": "L3:upstream-node",
+      "interruption-type": "blocks"
     }
   ],
   "assurance-contracts": [
     {
-      "id": "ac-detect-only",
-      "claim": "Detect only, no contain.",
-      "subject": "cmp-broken",
+      "id": "ac-broken",
+      "claim": "A claim whose control does not exist.",
+      "subject": "cmp-nonexistent",
+      "control": "ctl-missing",
       "threats": ["thr-unreferenced-threat"],
-      "function": "detect",
-      "interruption-point": "L5:evaluation",
-      "interruption-type": "detects",
+      "function": "prevent",
       "test": "test-missing",
       "decision-rule": {},
       "required-evidence": ["ev-missing"],
+      "evidence-max-age": "P1D",
       "cadence": "daily",
       "failure-action": "alert",
-      "owner": "tester"
+      "owner": "role-tester"
     }
   ],
   "tests": [
     {
       "id": "test-broken",
       "procedure": "noop",
-      "target": "cmp-broken",
+      "target": "cmp-not-in-inventory",
+      "adversarial": true,
       "inputs": {},
       "oracle": "always-pass",
       "metrics": ["m"],
       "thresholds": {},
       "sampling-plan": "all",
       "expected-result": "pass",
+      "test-pack": "pack-that-does-not-exist",
       "test-pack-version": "1.0.0"
     }
   ],
@@ -93,27 +156,41 @@
     {
       "id": "ev-stale",
       "class": "probabilistic-inference",
-      "subject-digests": [],
+      "subject-digests": [
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      ],
       "method": "inference-without-metadata",
-      "collector": "tool:test:1.0.0",
+      "collector": "unversioned-collector",
       "collected-at": "2030-01-01T00:00:00Z",
       "max-age": "P1D",
       "invalidated-at": "2020-01-01T00:00:00Z",
-      "result": "pass",
-      "signature": "sig:broken"
+      "result": "fail"
     }
   ],
   "findings": [
     {
       "id": "finding-broken",
       "failed-claim": "ac-nonexistent",
-      "severity": "high",
+      "severity": "sev-high",
       "affected-paths": ["path-nonexistent"],
       "root-cause": "test",
       "corrective-action": "fix",
-      "due-date": "2026-08-01",
+      "due-date": "not-a-date",
       "retest-reference": "test-nonexistent"
     }
   ],
-  "decisions": []
+  "decisions": [
+    {
+      "id": "dec-expired-exception",
+      "decision-type": "exception",
+      "gate-decision": "approve",
+      "policy-used": "none",
+      "decision-maker": "role-ghost",
+      "residual-risk": "unknown",
+      "scope": "everything",
+      "justification": "expired exception that should no longer count",
+      "expiry": "2020-01-01",
+      "compensating-controls": ["ctl-does-not-exist"]
+    }
+  ]
 }

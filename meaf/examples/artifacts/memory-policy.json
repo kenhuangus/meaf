@@ -1,0 +1,23 @@
+{
+  "policy-name": "agent-memory-write-policy",
+  "version": "2026.06",
+  "note": "Synthetic artifact for the MEAF pilot. Not a production memory policy.",
+  "write-admission": {
+    "requires-provenance": true,
+    "screened-for": [
+      "instruction-like-content",
+      "exfiltration-patterns",
+      "goal-restatement"
+    ],
+    "on-screen-failure": "reject-and-alert"
+  },
+  "retention": {
+    "cross-session": true,
+    "max-age": "P365D",
+    "quarantine-bucket": "memory-quarantine"
+  },
+  "replay": {
+    "known-good-checkpoint": "checkpoint-2026-05-01",
+    "clean-replay-supported": true
+  }
+}

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install -e .
+
+      - name: Test
+        run: python -m pytest --cov=meaf --cov-branch --cov-report=term-missing
+
+      # The pilot's own claims have to hold, not just its unit tests. Each step
+      # below is one of the assertions the README makes about the shipped
+      # examples, run as a command rather than trusted as prose.
+      - name: Reference package validates clean
+        run: |
+          python -m meaf validate meaf/examples/covert-influence.json \
+            --keyring meaf/examples/keyring.json --now 2026-07-28T12:00:00Z
+
+      - name: Package under remediation validates clean and gates to review
+        run: |
+          python -m meaf validate meaf/examples/memory-poisoning.json \
+            --keyring meaf/examples/keyring.json --now 2026-07-28T12:00:00Z
+          python -m meaf gate meaf/examples/memory-poisoning.json \
+            --now 2026-07-28T12:00:00Z && exit 1 || test $? -eq 2
+
+      - name: Broken package is rejected
+        run: |
+          python -m meaf validate meaf/examples/broken.json \
+            --now 2026-07-28T12:00:00Z && exit 1 || test $? -eq 1
+
+      - name: Artifact attestations match
+        run: python -m meaf attest meaf/examples/covert-influence.json
+
+      - name: Shipped examples are reproducible from the published demo seed
+        run: python meaf/examples/tools/regenerate.py --check
+
+      - name: Test runners execute
+        run: |
+          python -m meaf run-tests meaf/examples/covert-influence.json \
+            --test test-counterfactual-symmetry-001 --now 2026-07-28T12:00:00Z
+
+      - name: OSCAL export is deterministic
+        run: |
+          python -m meaf export-oscal meaf/examples/covert-influence.json --out-dir /tmp/oscal-a
+          python -m meaf export-oscal meaf/examples/covert-influence.json --out-dir /tmp/oscal-b
+          diff -r /tmp/oscal-a /tmp/oscal-b
+
+      - name: Working tree is clean after the full run
+        run: |
+          git status --porcelain
+          test -z "$(git status --porcelain)"

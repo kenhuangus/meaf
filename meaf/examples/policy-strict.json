@@ -1,0 +1,50 @@
+{
+  "policy-id": "meaf-example-strict",
+  "policy-version": "2.0.0",
+  "description": "A worked example of a tightened policy bundle: only SHA-256 digests, a closed list of approved evidence-collection methods, every impact tier requiring a verified interruption and a verified recovery, indeterminate failing closed everywhere, and probabilistic inference barred from gating. Use it to see how much of a package's gate result is a policy choice rather than a property of the framework.",
+  "permitted-digest-algorithms": ["sha256"],
+  "approved-evidence-methods": [
+    "paired-counterfactual-longitudinal-evaluation",
+    "supplier-attestation-verification",
+    "manifest-hash-verification",
+    "tabletop-containment-drill",
+    "cross-session-poison-write-probe",
+    "memory-quarantine-and-clean-replay-drill"
+  ],
+  "interruption-requirements": {
+    "critical": {
+      "require-before-outcome": ["blocks"],
+      "require-recovery": ["contains", "restores"],
+      "require-contract-pass": true
+    },
+    "high": {
+      "require-before-outcome": ["blocks", "detects"],
+      "require-recovery": ["contains", "restores"],
+      "require-contract-pass": true
+    },
+    "medium": {
+      "require-before-outcome": ["blocks", "detects", "limits"],
+      "require-recovery": ["contains", "restores"],
+      "require-contract-pass": false
+    },
+    "low": {
+      "require-before-outcome": ["blocks", "detects", "limits", "supports-investigation"],
+      "require-recovery": [],
+      "require-contract-pass": false
+    }
+  },
+  "indeterminate-handling": {
+    "critical": "fail-closed",
+    "high": "fail-closed",
+    "medium": "fail-closed",
+    "low": "fail-closed"
+  },
+  "maximum-exception-age-days": 90,
+  "block-gate-on-open-finding-severity": ["critical", "high", "medium"],
+  "require-authorization-decision": true,
+  "probabilistic-evidence": {
+    "permitted-for-gate": false,
+    "require-decision-rule": true,
+    "maximum-gating-share": 0.0
+  }
+}
