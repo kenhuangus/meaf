@@ -14,15 +14,17 @@ You have read [README.md](README.md) and can run `validate`, `attest`, and `run-
 
 | File | Responsibility | Depends on | Depended on by |
 |------|----------------|------------|----------------|
-| `meaf/__init__.py` | Published API re-exports, `__version__`, `SCHEMA_VERSION` | `attest`, `lifecycle`, `oscal`, `signing`, `testpack`, `validator` | External callers, `test_meaf.py` |
-| `meaf/__main__.py` | CLI (`argparse`, `sys.exit`) | `attest`, `lifecycle`, `oscal`, `signing`, `testpack`, `validator` | `python -m meaf` only |
-| `meaf/validator.py` | L1-L3, L5, L6 checks; `Finding`; `validate_package` orchestration | `jsonschema`; lazy `meaf.signing.validate_l4_evidence` | `signing`, `lifecycle`, `testpack`, `__init__`, `__main__`, tests |
+| `meaf/__init__.py` | Published API re-exports, `__version__`, `SCHEMA_VERSION` | `attest`, `contracts`, `lifecycle`, `oscal`, `signing`, `summary`, `testpack`, `validator` | External callers, `test_meaf.py` |
+| `meaf/__main__.py` | CLI (`argparse`, `sys.exit`) | `attest`, `contracts`, `lifecycle`, `oscal`, `signing`, `summary`, `testpack`, `validator` | `python -m meaf` only |
+| `meaf/validator.py` | L1-L3, L5, L6 checks; `Finding`; `validate_package` orchestration | `jsonschema`; lazy `meaf.signing.validate_l4_evidence`, `meaf.contracts.evaluate_contracts` | `signing`, `lifecycle`, `contracts`, `summary`, `testpack`, `__init__`, `__main__`, tests |
+| `meaf/contracts.py` | Per-contract state evaluation (appendix A.5) | `testpack._metric_rules`, `validator.evidence_is_fresh` | `validator` (L5), `summary`, `__init__`, `__main__`, tests |
+| `meaf/summary.py` | Conforming eight-dimension summary (no aggregate score) | `contracts`, `lifecycle`, `validator` | `__init__`, `__main__`, tests |
 | `meaf/signing.py` | Ed25519 sign/verify; L4 evidence checks | `validator.Finding`; lazy `meaf.attest.check_attestation` | `testpack`, `validator` (L4), `__init__`, `__main__`, tests |
 | `meaf/attest.py` | Digest computation, attestation records, `update_attestation` | stdlib only | `signing` (L4 drift), `lifecycle`, `__init__`, `__main__`, tests |
 | `meaf/testpack.py` | Subprocess runners, decision-rule evaluation, evidence emission | `signing`, `validator.parse_datetime` | `__init__`, `__main__`, tests |
 | `meaf/lifecycle.py` | State machine, transition guards | `validator`; lazy `meaf.attest.has_attestation_drift` | `__init__`, `__main__`, tests |
 | `meaf/oscal.py` | Deterministic OSCAL 1.1.2 export | stdlib only | `__init__`, `__main__`, tests |
-| `meaf/schema/meaf-1.0.0.schema.json` | JSON Schema for packages | none (data) | `validator.load_schema`, tests |
+| `meaf/schema/meaf-1.1.0.schema.json` | JSON Schema for packages | none (data) | `validator.load_schema`, tests |
 | `meaf/test_meaf.py` | Pytest suite | all library modules | none |
 | `meaf/examples/` | Reference packages, keyring, runners, artifacts | none (fixtures) | tests, README, this guide |
 
@@ -39,7 +41,7 @@ validator  signing    attest   testpack  lifecycle   oscal
     |          | (L4)                  |          |
     |          +----> attest (drift)   |          |
     |                                  |          |
-    +----------------------------------+----------+  (validate_package in guards)
+    +--------> contracts ----> summary -+----------+  (validate_package in guards)
 
 meaf/__init__.py  re-exports published surface from all libraries above
 ```
@@ -139,13 +141,26 @@ Do not break these. Each lists the guarding test in `meaf/test_meaf.py`.
 
 | Invariant | Reason | Test |
 |-----------|--------|------|
-| `indeterminate` is never coerced to `pass` or `fail` | Confuses "could not measure" with success or violation | `test_bad_runner_yields_indeterminate_not_fail` |
+| `indeterminate` is never coerced to `pass` or `fail` | Confuses "could not measure" with success or violation | `test_bad_runner_yields_indeterminate_not_fail`, `test_indeterminate_contract_does_not_cause_contracts_exit_one` |
+| Contract `indeterminate` is never coerced to `pass` or `fail` | Assurance claims must not silently succeed or fail on unresolved evidence | `test_contract_state_indeterminate_stale_evidence`, `test_indeterminate_contract_does_not_cause_contracts_exit_one` |
+| `not-applicable` requires an `applicability` object | Named authority must explicitly waive a contract | `test_contract_state_not_applicable_requires_applicability` |
 | A check that cannot run emits a warning; never silently passes | Missing capability must be visible | `test_missing_keyring_produces_one_l4_warning` |
 | Unsigned artifacts must be structurally distinguishable from signed ones | No placeholder signature objects; missing `signature` key vs invalid signature | `test_unsigned_evidence_with_keyring_reports_unsigned_not_verify_failed` |
 | Digests are hashed over newline-normalized bytes | CRLF checkouts must not cause false drift | `test_example_artifact_digests_match_recorded_values` |
 | `attest --update` rebinds digests but never forges signatures | `update_attestation` updates component digests and `subject-digests`; it does not call `sign_evidence` | `test_attest_update_repairs_drift_and_preserves_evidence_bindings` (rebind); `test_run_tests_without_sign_with_emits_no_signature` (unsigned evidence has no `signature` key) |
 | OSCAL export stays deterministic; no wall-clock time or randomness | Reproducible exports for diffing and CI | `test_oscal_export_is_deterministic` |
 | Public surface in `__all__` is exact | API stability contract | `test_public_api_surface` (also `test_public_callable_signatures`, `test_frozen_wire_contracts`) |
+
+### Contract-state precedence (appendix A.5)
+
+`evaluate_contract` in `meaf/contracts.py` applies these rules in order; the first match wins:
+
+1. **`not-applicable`** — only when the contract carries an `applicability` object (`approved-by`, `rationale`, `scope`). A contract without `applicability` can never reach this state.
+2. **`fail`** — any required-evidence item resolves and has `result: fail`.
+3. **`indeterminate`** — any required-evidence item is missing, stale at `now`, invalidated, has `result: indeterminate`, or is class `probabilistic-inference` while the contract has no decision-rule to interpret it.
+4. **`pass`** — every required-evidence item resolves, is current, and has `result: pass`.
+
+The implementation includes an explicit comment that `indeterminate` must never be silently coerced to `pass` or `fail`. L5 validation additionally requires that every contract in `fail` state has a `findings` entry referencing it (`test_fail_contract_without_finding_is_l5_error`).
 
 ---
 
@@ -291,7 +306,7 @@ The CLI loads packages, resolves paths (`default_root_for_package`, `_resolve_ke
 
 ## 6. Extension walkthrough C: extend the schema
 
-Schema file: `meaf/schema/meaf-1.0.0.schema.json`.
+Schema file: `meaf/schema/meaf-1.1.0.schema.json`.
 
 ### Add an optional field without breaking existing packages
 
@@ -321,13 +336,13 @@ Top-level `meaf-version` in packages:
 }
 ```
 
-`meaf/__init__.py` sets `SCHEMA_VERSION = "1.0.0"`. The schema filename is `meaf-1.0.0.schema.json`. These must stay aligned (`test_schema_version_matches_package_version`).
+`meaf/__init__.py` sets `SCHEMA_VERSION = "1.1.0"`. The schema filename is `meaf-1.1.0.schema.json`. These must stay aligned (`test_schema_version_matches_package_version`).
 
 ### Update in lockstep
 
 When changing the schema:
 
-1. `meaf/schema/meaf-1.0.0.schema.json` (or new version file for a major bump)
+1. `meaf/schema/meaf-1.1.0.schema.json` (or new version file for a major bump)
 2. `meaf/__init__.py` — `SCHEMA_VERSION` and `__version__` if releasing
 3. `meaf/examples/covert-influence.json` — reference package
 4. `meaf/test_meaf.py` — version and validation tests

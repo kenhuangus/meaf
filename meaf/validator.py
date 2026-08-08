@@ -32,7 +32,7 @@ class Finding:
 
 
 def load_schema() -> dict[str, Any]:
-    schema_path = Path(__file__).parent / "schema" / "meaf-1.0.0.schema.json"
+    schema_path = Path(__file__).parent / "schema" / "meaf-1.1.0.schema.json"
     with schema_path.open(encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -537,6 +537,46 @@ def validate_l5_policy(package: dict[str, Any], now: datetime) -> list[Finding]:
                     message=(
                         "contract policy violation: all required-evidence items "
                         "are stale at evaluation time"
+                    ),
+                )
+            )
+
+    from meaf.contracts import evaluate_contracts
+
+    finding_contract_ids = {
+        finding.get("failed-claim")
+        for finding in package.get("findings", [])
+    }
+    for evaluation in evaluate_contracts(package, now=now):
+        contract_id = evaluation["contract-id"]
+        if evaluation["state"] != "fail":
+            continue
+        if contract_id not in finding_contract_ids:
+            findings.append(
+                Finding(
+                    level=5,
+                    severity="error",
+                    object_id=contract_id,
+                    message=(
+                        "failed assurance-contract lacks findings object "
+                        "referencing its claim"
+                    ),
+                )
+            )
+
+    for contract in package.get("assurance-contracts", []):
+        contract_id = contract["id"]
+        function = contract.get("function", "")
+        if function not in ("prevent", "detect"):
+            continue
+        if contract.get("decision-rule") and not contract.get("utility-rule"):
+            findings.append(
+                Finding(
+                    level=5,
+                    severity="warning",
+                    object_id=contract_id,
+                    message=(
+                        "security threshold declared without a utility threshold"
                     ),
                 )
             )

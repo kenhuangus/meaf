@@ -13,6 +13,10 @@ def main() -> int:
         "metrics": {
             "source-inclusion-asymmetry": 0.04,
             "claim-support-rate": 0.97,
+            "minimum-paired-cases": 500,
+        },
+        "utility-metrics": {
+            "benign-task-completion-rate": 0.91,
         },
     }
     print(json.dumps(payload, separators=(",", ":")))

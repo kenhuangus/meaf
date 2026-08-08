@@ -15,10 +15,16 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 import meaf
 from meaf.attest import check_attestation, compute_digest, update_attestation
+from meaf.contracts import (
+    contracts_exit_code,
+    evaluate_contract,
+    evaluate_contracts,
+)
 from meaf.lifecycle import attempt_transition, check_transition_guard, current_state
 from meaf.oscal import EXPORT_FILES, export_oscal
 from meaf.signing import load_keyring, sign_evidence, validate_l4_evidence, verify_evidence
-from meaf.testpack import run_tests
+from meaf.summary import SUMMARY_KEYS, build_summary
+from meaf.testpack import evaluate_contract_rules, run_tests
 from meaf.validator import (
     evidence_is_fresh,
     format_findings,
@@ -54,6 +60,9 @@ PUBLIC_API_EXPORTS = frozenset(
         "verify_evidence",
         "load_keyring",
         "canonical_payload",
+        "evaluate_contract",
+        "evaluate_contracts",
+        "build_summary",
     }
 )
 
@@ -68,6 +77,12 @@ EXPECTED_CALLABLE_SIGNATURES: dict[str, tuple[list[str], list[str]]] = {
     "export_oscal": (["package", "out_dir"], []),
     "sign_evidence": (["evidence", "private_key"], ["key_id"]),
     "verify_evidence": (["evidence", "keyring"], []),
+    "evaluate_contract": (
+        ["package", "contract"],
+        ["now", "keyring", "root"],
+    ),
+    "evaluate_contracts": (["package"], ["now", "keyring", "root"]),
+    "build_summary": (["package"], ["now", "keyring", "root"]),
 }
 
 ATTESTATION_RECORD_KEYS = frozenset(
@@ -127,13 +142,13 @@ def test_public_callable_signatures():
 
 
 def test_schema_version_matches_package_version():
-    assert meaf.SCHEMA_VERSION == "1.0.0"
-    assert meaf.__version__ == "1.0.0"
+    assert meaf.SCHEMA_VERSION == "1.1.0"
+    assert meaf.__version__ == "1.1.0"
     package = load_package(EXAMPLES / "covert-influence.json")
     assert package["meaf-version"] == meaf.SCHEMA_VERSION
     schema = load_schema()
     pattern = schema["properties"]["meaf-version"]["pattern"]
-    assert pattern == "^1\\.0\\.0$"
+    assert pattern == "^1\\.[0-9]+\\.[0-9]+$"
 
 
 def test_frozen_wire_contracts():
@@ -661,3 +676,155 @@ def test_lifecycle_degraded_requires_attestation_drift_when_root_supplied():
     )
     assert granted
     assert "bound artifact digest changed" in reason
+
+
+def test_contract_state_pass():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    evaluations = evaluate_contracts(package, now=FROZEN_NOW)
+    by_id = {item["contract-id"]: item for item in evaluations}
+    assert by_id["ac-epistemic-integrity-001"]["state"] == "pass"
+    assert by_id["ac-containment-001"]["state"] == "pass"
+
+
+def test_contract_state_fail():
+    package = copy.deepcopy(load_package(EXAMPLES / "covert-influence.json"))
+    for evidence in package["evidence"]:
+        if evidence["id"] == "ev-counterfactual-run-2026-07":
+            evidence["result"] = "fail"
+    contract = next(
+        c for c in package["assurance-contracts"] if c["id"] == "ac-epistemic-integrity-001"
+    )
+    result = evaluate_contract(package, contract, now=FROZEN_NOW)
+    assert result["state"] == "fail"
+    assert "fail" in result["reason"]
+
+
+def test_contract_state_indeterminate_stale_evidence():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    stale_now = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
+    contract = next(
+        c for c in package["assurance-contracts"] if c["id"] == "ac-epistemic-integrity-001"
+    )
+    result = evaluate_contract(package, contract, now=stale_now)
+    assert result["state"] == "indeterminate"
+    assert result["state"] not in ("pass", "fail")
+
+
+def test_contract_state_not_applicable_requires_applicability():
+    package = copy.deepcopy(load_package(EXAMPLES / "covert-influence.json"))
+    contract = next(
+        c for c in package["assurance-contracts"] if c["id"] == "ac-containment-001"
+    )
+    without = evaluate_contract(package, contract, now=FROZEN_NOW)
+    assert without["state"] != "not-applicable"
+
+    contract["applicability"] = {
+        "approved-by": "ai-assurance-review-board",
+        "rationale": "containment handled by external SOC",
+        "scope": "production-research-agent",
+    }
+    with_applicability = evaluate_contract(package, contract, now=FROZEN_NOW)
+    assert with_applicability["state"] == "not-applicable"
+
+
+def test_indeterminate_contract_does_not_cause_contracts_exit_one():
+    package = copy.deepcopy(load_package(EXAMPLES / "covert-influence.json"))
+    for evidence in package["evidence"]:
+        evidence["collected-at"] = "2020-01-01T00:00:00Z"
+    evaluations = evaluate_contracts(
+        package, now=datetime(2026, 9, 1, tzinfo=timezone.utc)
+    )
+    assert all(e["state"] == "indeterminate" for e in evaluations)
+    assert contracts_exit_code(evaluations) == 0
+    assert not any(e["state"] == "fail" for e in evaluations)
+
+
+def test_fail_contract_without_finding_is_l5_error():
+    package = copy.deepcopy(load_package(EXAMPLES / "covert-influence.json"))
+    for evidence in package["evidence"]:
+        if evidence["id"] == "ev-counterfactual-run-2026-07":
+            evidence["result"] = "fail"
+    findings = validate_package(package, now=FROZEN_NOW, root=REPO_ROOT)
+    errors = [
+        f
+        for f in findings
+        if f.level == 5
+        and f.severity == "error"
+        and f.object_id == "ac-epistemic-integrity-001"
+        and "failed assurance-contract lacks findings object" in f.message
+    ]
+    assert len(errors) == 1
+
+
+def test_summary_has_eight_keys_and_no_aggregate_score():
+    package = load_package(EXAMPLES / "covert-influence.json")
+    summary = build_summary(package, now=FROZEN_NOW, root=REPO_ROOT)
+    assert frozenset(summary.keys()) == SUMMARY_KEYS
+    forbidden = {"score", "overall", "aggregate", "total-score", "overall-score"}
+    assert forbidden.isdisjoint(summary.keys())
+    for value in summary.values():
+        if isinstance(value, dict):
+            assert forbidden.isdisjoint(value.keys())
+
+
+def test_utility_rule_satisfied_and_violated():
+    contract = {
+        "decision-rule": {"metric-a-max": 1.0},
+        "utility-rule": {"benign-task-completion-rate-min": 0.85},
+    }
+    assert (
+        evaluate_contract_rules(
+            contract,
+            {"metric-a": 0.5},
+            {"benign-task-completion-rate": 0.9},
+        )
+        == "pass"
+    )
+    assert (
+        evaluate_contract_rules(
+            contract,
+            {"metric-a": 0.5},
+            {"benign-task-completion-rate": 0.5},
+        )
+        == "fail"
+    )
+
+
+def test_missing_utility_metrics_yields_indeterminate():
+    contract = {
+        "decision-rule": {"metric-a-max": 1.0},
+        "utility-rule": {"benign-task-completion-rate-min": 0.85},
+    }
+    assert evaluate_contract_rules(contract, {"metric-a": 0.5}, None) == "indeterminate"
+    assert evaluate_contract_rules(contract, {"metric-a": 0.5}, {}) == "indeterminate"
+
+
+def test_prevent_detect_without_utility_rule_is_l5_warning():
+    package = copy.deepcopy(load_package(EXAMPLES / "covert-influence.json"))
+    package["assurance-contracts"].append(
+        {
+            "id": "ac-prevent-no-utility",
+            "claim": "test prevent without utility threshold",
+            "subject": "cmp-foundation-model",
+            "threats": ["thr-covert-influence-001"],
+            "function": "prevent",
+            "interruption-point": "L3:response-planning",
+            "interruption-type": "blocks",
+            "test": "test-counterfactual-symmetry-001",
+            "decision-rule": {"blocked-rate-min": 0.9},
+            "required-evidence": ["ev-model-attestation"],
+            "cadence": "daily",
+            "failure-action": "block",
+            "owner": "role-test",
+        }
+    )
+    findings = validate_package(package, now=FROZEN_NOW, root=REPO_ROOT)
+    warnings = [
+        f
+        for f in findings
+        if f.level == 5
+        and f.severity == "warning"
+        and f.object_id == "ac-prevent-no-utility"
+        and f.message == "security threshold declared without a utility threshold"
+    ]
+    assert len(warnings) == 1

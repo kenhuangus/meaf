@@ -31,14 +31,16 @@ meaf-repo/
 │   ├── __init__.py                    # Public API exports and version
 │   ├── __main__.py                    # CLI entry point (python -m meaf)
 │   ├── validator.py                   # Conformance levels L1-L6
+│   ├── contracts.py                   # Per-contract state evaluation (A.5)
+│   ├── summary.py                     # Conforming assurance summary (A.5)
 │   ├── signing.py                     # Ed25519 evidence signing and L4 checks
 │   ├── attest.py                      # Artifact digest attestation
 │   ├── testpack.py                    # Test runner execution and evidence emission
 │   ├── lifecycle.py                   # Package lifecycle state machine
 │   ├── oscal.py                       # OSCAL 1.1.2 export
-│   ├── test_meaf.py                   # Pytest suite (27 tests)
+│   ├── test_meaf.py                   # Pytest suite (37 tests)
 │   ├── schema/
-│   │   └── meaf-1.0.0.schema.json     # JSON Schema for package structure
+│   │   └── meaf-1.1.0.schema.json     # JSON Schema for package structure
 │   └── examples/
 │       ├── covert-influence.json      # Complete reference package
 │       ├── broken.json                # Intentionally invalid package for error demos
@@ -52,7 +54,7 @@ meaf-repo/
 
 ## Concepts and object model
 
-A MEAF package contains nine linked object types. Each type has required fields defined in `meaf/schema/meaf-1.0.0.schema.json`.
+A MEAF package contains nine linked object types. Each type has required fields defined in `meaf/schema/meaf-1.1.0.schema.json`.
 
 ### system
 
@@ -74,6 +76,8 @@ MAESTRO-aligned threat objects tied to an attack path and temporal profile.
 
 Required fields: `id`, `actor`, `capabilities`, `attack-classes`, `objective`, `entry-layers`, `path`, `affected-stakeholders`, `outcomes`, `temporal-profile`.
 
+Optional fields: `stage` (lifecycle stage of the attack), `preconditions` (array of strings describing conditions that must hold before the attack can proceed).
+
 `temporal-profile` requires: `persistence`, `activation-latency`, `exposure-unit`, `compounding-rule`, `dormancy`, `detection-horizon`, `reversibility`, `recovery-objective`.
 
 ### attack-paths
@@ -93,6 +97,24 @@ Required fields: `id`, `claim`, `subject`, `threats`, `function`, `interruption-
 `function`: `prevent`, `detect`, `contain`, or `recover`.
 
 `interruption-type`: `blocks`, `detects`, `limits`, `contains`, `restores`, or `supports-investigation`.
+
+Optional fields:
+
+- `utility-rule` — same `-max`/`-min` suffix semantics as `decision-rule`, evaluated against runner `utility-metrics` (see [Writing a test runner](#writing-a-test-runner)). When present, a test-linked contract passes only when both rules are satisfied.
+- `applicability` — object with required `approved-by`, `rationale`, and `scope`. When present, the contract is evaluated as `not-applicable` regardless of evidence (named authority required).
+
+### Contract states (appendix A.5)
+
+Each assurance contract resolves to exactly one of four states (precedence order):
+
+| State | When |
+|-------|------|
+| `not-applicable` | Contract carries an `applicability` object with named authority |
+| `fail` | Any required-evidence item resolves and has `result: fail` |
+| `indeterminate` | Any required-evidence missing, stale, invalidated, `indeterminate`, or probabilistic-inference without a decision-rule to interpret it |
+| `pass` | Every required-evidence item resolves, is current, and has `result: pass` |
+
+`indeterminate` is never coerced to `pass` or `fail`. Inspect states with `python -m meaf contracts <package>`.
 
 ### tests
 
@@ -427,12 +449,12 @@ Declared on a test as `"runner": { ... }`. Required fields:
 On success (exit code `0`), the subprocess must print exactly one JSON object on stdout:
 
 ```json
-{"result": "pass", "metrics": {"metric-name": 0.42}}
+{"result": "pass", "metrics": {"metric-name": 0.42}, "utility-metrics": {"benign-task-completion-rate": 0.91}}
 ```
 
 Allowed `result` values: `pass`, `fail`, `indeterminate`. Any other value is coerced to `indeterminate`.
 
-`metrics` must be a JSON object mapping names to numbers.
+`metrics` must be a JSON object mapping names to numbers (security metrics). `utility-metrics` is optional; when a linked contract declares a `utility-rule`, omitting `utility-metrics` yields `indeterminate` for that rule, not `pass`.
 
 ### Indeterminate is not fail
 
@@ -626,11 +648,11 @@ Pass `--keyring` to `validate` to enable L4 signature checks. Without it, L4 emi
 
 | Level | Checks | Failure example |
 |-------|--------|-----------------|
-| L1 | JSON Schema syntactic validation | `'99.0.0' does not match '^1\\.0\\.0$'` |
+| L1 | JSON Schema syntactic validation | `'99.0.0' does not match '^1\\.[0-9]+\\.[0-9]+$'` |
 | L2 | Referential integrity (ids resolve uniquely) | `dangling reference path='path-missing' (no attack-paths with that id)` |
 | L3 | Semantic rules (layer-ordered paths, timestamps, contract coverage, freshness warnings) | `attack-path lacks assurance-contract with interruption-type blocks or detects` |
 | L4 | Signature verification (with keyring), evidence digest binding, artifact attestation | `artifact digest drift: cmp-foundation-model` |
-| L5 | Policy (threat coverage, failed-evidence findings, expired decisions, stale required evidence) | `threat lacks assurance-contract reference` |
+| L5 | Policy (threat coverage, failed-evidence findings, failed-contract findings tracking, expired decisions, stale required evidence, utility-threshold warnings) | `failed assurance-contract lacks findings object referencing its claim` |
 | L6 | Collector version strings | `evidence collector lacks explicit version (expected name:major.minor.patch)` |
 
 Warnings (stale evidence at L3, empty subject-digests at L4, missing artifact file at L4) do not affect the `validate` exit code. Errors do.
@@ -638,7 +660,7 @@ Warnings (stale evidence at L3, empty subject-digests at L4, missing artifact fi
 ## CLI reference
 
 ```
-python -m meaf [-h] {validate,run-tests,lifecycle,export-oscal,attest} ...
+python -m meaf [-h] {validate,run-tests,lifecycle,export-oscal,attest,contracts,summary} ...
 ```
 
 ### `validate`
@@ -705,6 +727,66 @@ python -m meaf attest [-h] [--root ROOT] [--update] [--json] package
 | `--update` | Rewrite digests and evidence subject-digests in place |
 | `--json` | Emit machine-readable JSON attestation records |
 
+### `contracts`
+
+```
+python -m meaf contracts [-h] [--json] [--keyring KEYRING] package
+```
+
+| Flag | Description |
+|------|-------------|
+| `package` | Path to package JSON (positional) |
+| `--json` | Emit machine-readable JSON contract evaluations |
+| `--keyring KEYRING` | Ed25519 public keyring (reserved for future L4-aware evaluation) |
+
+Human output is one line per contract: `contract-id: state (reason)`.
+
+Example:
+
+```bash
+python -m meaf contracts meaf/examples/covert-influence.json --keyring meaf/examples/keyring.json
+```
+
+```
+ac-epistemic-integrity-001: pass (all required evidence current with result pass)
+ac-containment-001: pass (all required evidence current with result pass)
+```
+
+Exit `1` if any contract is `fail`; `indeterminate` alone does not produce exit `1`.
+
+### `summary`
+
+```
+python -m meaf summary [-h] [--json] [--keyring KEYRING] package
+```
+
+| Flag | Description |
+|------|-------------|
+| `package` | Path to package JSON (positional) |
+| `--json` | Emit machine-readable JSON summary |
+| `--keyring KEYRING` | Ed25519 public keyring |
+
+Builds a conforming summary with exactly eight top-level dimensions and **no aggregate score**:
+
+| Dimension | Contents |
+|-----------|----------|
+| `threat-model-completeness` | Threat counts: total, with contract, lacking contract |
+| `path-interruption-coverage` | Attack-path counts: total, detect/block, contain/restore, fully covered |
+| `control-test-status` | Contract counts by the four states |
+| `evidence-freshness` | Evidence counts: current, stale, invalidated |
+| `open-findings-by-severity` | Severity → count from `findings` |
+| `recovery-readiness` | Paths with current containment evidence + lifecycle state |
+| `probabilistic-evidence-dependence` | Probabilistic evidence count, fraction, contracts depending on it |
+| `exception-age` | Per decision: id, expiry, expired flag, age in days |
+
+Example:
+
+```bash
+python -m meaf summary meaf/examples/covert-influence.json --keyring meaf/examples/keyring.json
+```
+
+Exit code is always `0` (report, not a gate).
+
 ### Exit codes
 
 | Command | `0` | `1` | other |
@@ -714,6 +796,8 @@ python -m meaf attest [-h] [--root ROOT] [--update] [--json] package
 | `lifecycle` | Transition granted, or inspect mode | Transition refused | |
 | `export-oscal` | Always | | |
 | `attest` | No drift/missing-file (check mode); always (update mode) | Drift or missing-file (check mode) | |
+| `contracts` | No contract in `fail` state | Any contract in `fail` state | |
+| `summary` | Always (report) | | |
 
 ## Library use
 
@@ -739,6 +823,9 @@ from meaf import (
     verify_evidence,
     load_keyring,
     canonical_payload,
+    evaluate_contract,
+    evaluate_contracts,
+    build_summary,
 )
 ```
 
@@ -808,6 +895,35 @@ sign_evidence(evidence: dict, private_key: Ed25519PrivateKey, *, key_id: str | N
 verify_evidence(evidence: dict, keyring: dict[str, bytes]) -> bool
 ```
 
+### `evaluate_contracts` / `build_summary`
+
+```python
+evaluate_contract(
+    package: dict,
+    contract: dict,
+    *,
+    now: datetime,
+    keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
+) -> dict
+
+evaluate_contracts(
+    package: dict,
+    *,
+    now: datetime,
+    keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
+) -> list[dict]
+
+build_summary(
+    package: dict,
+    *,
+    now: datetime,
+    keyring: dict[str, bytes] | None = None,
+    root: Path | None = None,
+) -> dict
+```
+
 ### Example
 
 ```python
@@ -835,7 +951,7 @@ Run a single test:
 python -m pytest meaf/test_meaf.py::test_broken_has_errors_at_each_level -q
 ```
 
-### What the 27 tests cover
+### What the 37 tests cover
 
 | Area | Tests |
 |------|-------|
@@ -846,6 +962,8 @@ python -m pytest meaf/test_meaf.py::test_broken_has_errors_at_each_level -q
 | Test pack | `test_counterfactual_symmetry_runner_passes`, `test_bad_runner_yields_indeterminate_not_fail`, `test_run_tests_without_sign_with_emits_no_signature` |
 | Lifecycle | `test_lifecycle_legal_transitions_granted`, `test_lifecycle_illegal_transitions_refused`, `test_lifecycle_degraded_requires_attestation_drift_when_root_supplied` |
 | Attestation | `test_example_artifact_digests_match_recorded_values`, `test_attestation_drift_detected_and_validated`, `test_missing_artifact_file_is_warning_not_error`, `test_attest_update_repairs_drift_and_preserves_evidence_bindings` |
+| Contract states / summary | `test_contract_state_pass`, `test_contract_state_fail`, `test_contract_state_indeterminate_stale_evidence`, `test_contract_state_not_applicable_requires_applicability`, `test_indeterminate_contract_does_not_cause_contracts_exit_one`, `test_fail_contract_without_finding_is_l5_error`, `test_summary_has_eight_keys_and_no_aggregate_score` |
+| Utility thresholds | `test_utility_rule_satisfied_and_violated`, `test_missing_utility_metrics_yields_indeterminate`, `test_prevent_detect_without_utility_rule_is_l5_warning` |
 | OSCAL | `test_oscal_export_is_deterministic` |
 
 ### Adding a test for a new rule
@@ -867,16 +985,16 @@ Check both when adding rules or runners.
 
 ## Stability and versioning
 
-From release **1.0.0**, this project follows [semantic versioning](https://semver.org/). The public API, CLI, and wire formats listed below are stable within a major version.
+From release **1.1.0**, this project follows [semantic versioning](https://semver.org/). The public API, CLI, and wire formats listed below are stable within a major version.
 
 **Covered by the compatibility promise**
 
 - The names exported from the `meaf` package (`meaf.__all__`) and their call signatures
 - CLI subcommands, flags, and exit codes
-- JSON output shapes of `validate --json` and `attest --json`
-- The MEAF package JSON schema (`meaf-version` and `meaf/schema/meaf-1.0.0.schema.json`)
+- JSON output shapes of `validate --json`, `attest --json`, `contracts --json`, and `summary --json`
+- The MEAF package JSON schema (`meaf-version` and `meaf/schema/meaf-1.1.0.schema.json`)
 - The canonical signed evidence payload format (`canonical_payload`)
-- The test-runner stdout contract (`{"result": ..., "metrics": {...}}`)
+- The test-runner stdout contract (`{"result": ..., "metrics": {...}, "utility-metrics": {...}}`)
 
 **Not covered** (may change in any release)
 

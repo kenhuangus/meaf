@@ -83,31 +83,41 @@ def _target_digests(package: dict[str, Any], target: str) -> list[str]:
     return []
 
 
-def _parse_runner_output(stdout: str) -> tuple[str, dict[str, float]]:
+def _parse_metrics(raw_metrics: Any) -> dict[str, float]:
+    if not isinstance(raw_metrics, dict):
+        return {}
+    metrics: dict[str, float] = {}
+    for name, value in raw_metrics.items():
+        if isinstance(value, (int, float)):
+            metrics[name] = float(value)
+    return metrics
+
+
+def _parse_runner_output(
+    stdout: str,
+) -> tuple[str, dict[str, float], dict[str, float]]:
     try:
         payload = json.loads(stdout.strip())
     except json.JSONDecodeError:
-        return "indeterminate", {}
+        return "indeterminate", {}, {}
     if not isinstance(payload, dict):
-        return "indeterminate", {}
+        return "indeterminate", {}, {}
     result = payload.get("result", "indeterminate")
     if result not in ("pass", "fail", "indeterminate"):
         result = "indeterminate"
     raw_metrics = payload.get("metrics", {})
     if not isinstance(raw_metrics, dict):
-        return "indeterminate", {}
-    metrics: dict[str, float] = {}
-    for name, value in raw_metrics.items():
-        if isinstance(value, (int, float)):
-            metrics[name] = float(value)
-    return result, metrics
+        return "indeterminate", {}, {}
+    metrics = _parse_metrics(raw_metrics)
+    utility_metrics = _parse_metrics(payload.get("utility-metrics", {}))
+    return result, metrics, utility_metrics
 
 
 def run_test_subprocess(
     runner: dict[str, Any],
     *,
     cwd: Path | None = None,
-) -> tuple[str, dict[str, float]]:
+) -> tuple[str, dict[str, float], dict[str, float]]:
     command = runner.get("command", [])
     timeout = runner.get("timeout-seconds", 60)
     workdir = runner.get("working-directory")
@@ -121,9 +131,9 @@ def run_test_subprocess(
             cwd=run_cwd,
         )
     except (subprocess.TimeoutExpired, OSError):
-        return "indeterminate", {}
+        return "indeterminate", {}, {}
     if completed.returncode != 0:
-        return "indeterminate", {}
+        return "indeterminate", {}, {}
     return _parse_runner_output(completed.stdout)
 
 
@@ -134,6 +144,23 @@ def _combine_results(runner_result: str, contract_results: list[str]) -> str:
     if "indeterminate" in results:
         return "indeterminate"
     return "pass"
+
+
+def evaluate_contract_rules(
+    contract: dict[str, Any],
+    metrics: dict[str, float],
+    utility_metrics: dict[str, float] | None,
+) -> str:
+    """Evaluate security and optional utility rules; fail beats indeterminate."""
+    security_result = evaluate_decision_rule(contract.get("decision-rule", {}), metrics)
+    utility_rule = contract.get("utility-rule")
+    if utility_rule:
+        utility_result = evaluate_decision_rule(
+            utility_rule,
+            utility_metrics or {},
+        )
+        return _combine_results("pass", [security_result, utility_result])
+    return security_result
 
 
 def build_evidence(
@@ -177,11 +204,11 @@ def execute_test(
     if not runner:
         raise ValueError(f"test {test_id!r} has no runner")
 
-    runner_result, metrics = run_test_subprocess(runner, cwd=cwd)
+    runner_result, metrics, utility_metrics = run_test_subprocess(runner, cwd=cwd)
     contract_outcomes: list[ContractOutcome] = []
     contract_results: list[str] = []
     for contract in _contracts_for_test(package, test_id):
-        rule_result = evaluate_decision_rule(contract.get("decision-rule", {}), metrics)
+        rule_result = evaluate_contract_rules(contract, metrics, utility_metrics)
         if runner_result == "indeterminate":
             combined = "indeterminate"
         elif runner_result == "fail":
@@ -193,7 +220,10 @@ def execute_test(
             ContractOutcome(
                 contract_id=contract["id"],
                 result=combined,
-                details=f"runner={runner_result}, metrics={metrics}, rule={rule_result}",
+                details=(
+                    f"runner={runner_result}, metrics={metrics}, "
+                    f"utility-metrics={utility_metrics}, rule={rule_result}"
+                ),
             )
         )
 

@@ -1,7 +1,7 @@
 """MEAF — MAESTRO Executable Assurance Framework pilot."""
 
-__version__ = "1.0.0"
-SCHEMA_VERSION = "1.0.0"
+__version__ = "1.1.0"
+SCHEMA_VERSION = "1.1.0"
 
 from meaf.attest import (
     check_attestation,
@@ -9,6 +9,7 @@ from meaf.attest import (
     default_root_for_package,
     update_attestation,
 )
+from meaf.contracts import evaluate_contract, evaluate_contracts
 from meaf.lifecycle import (
     TransitionResult,
     attempt_transition,
@@ -22,6 +23,7 @@ from meaf.signing import (
     sign_evidence,
     verify_evidence,
 )
+from meaf.summary import build_summary
 from meaf.testpack import TestRunResult, run_tests
 from meaf.validator import (
     Finding,
@@ -52,4 +54,7 @@ __all__ = [
     "verify_evidence",
     "load_keyring",
     "canonical_payload",
+    "evaluate_contract",
+    "evaluate_contracts",
+    "build_summary",
 ]

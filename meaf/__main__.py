@@ -15,9 +15,15 @@ from meaf.attest import (
     format_attestation_records,
     update_attestation,
 )
+from meaf.contracts import (
+    contracts_exit_code,
+    evaluate_contracts,
+    format_contract_evaluations,
+)
 from meaf.lifecycle import attempt_transition, current_state, format_status, legal_next_states
 from meaf.oscal import export_oscal
 from meaf.signing import load_keyring
+from meaf.summary import build_summary
 from meaf.testpack import format_run_results, load_signing_key, merge_evidence, run_tests
 from meaf.validator import format_findings, has_errors, load_package, validate_package
 
@@ -114,7 +120,40 @@ def main(argv: list[str] | None = None) -> int:
         help="Emit machine-readable JSON attestation records",
     )
 
+    contracts_parser = subparsers.add_parser(
+        "contracts",
+        help="Evaluate assurance-contract states",
+    )
+    contracts_parser.add_argument("package", type=Path, help="Path to package JSON")
+    contracts_parser.add_argument(
+        "--keyring",
+        type=Path,
+        help="Path to Ed25519 public keyring JSON",
+    )
+    contracts_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON contract evaluations",
+    )
+
+    summary_parser = subparsers.add_parser(
+        "summary",
+        help="Build conforming assurance summary (no aggregate score)",
+    )
+    summary_parser.add_argument("package", type=Path, help="Path to package JSON")
+    summary_parser.add_argument(
+        "--keyring",
+        type=Path,
+        help="Path to Ed25519 public keyring JSON",
+    )
+    summary_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON summary",
+    )
+
     args = parser.parse_args(argv)
+    now = datetime.now(timezone.utc)
 
     if args.command == "validate":
         package = load_package(args.package)
@@ -207,6 +246,30 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(format_attestation_records(records))
         return attestation_exit_code(records)
+
+    if args.command == "contracts":
+        package = load_package(args.package)
+        keyring = _resolve_keyring(args.keyring)
+        root = default_root_for_package(args.package)
+        evaluations = evaluate_contracts(
+            package, now=now, keyring=keyring, root=root
+        )
+        if args.json:
+            print(json.dumps(evaluations, indent=2))
+        else:
+            print(format_contract_evaluations(evaluations))
+        return contracts_exit_code(evaluations)
+
+    if args.command == "summary":
+        package = load_package(args.package)
+        keyring = _resolve_keyring(args.keyring)
+        root = default_root_for_package(args.package)
+        summary = build_summary(package, now=now, keyring=keyring, root=root)
+        if args.json:
+            print(json.dumps(summary, indent=2))
+        else:
+            print(json.dumps(summary, indent=2))
+        return 0
 
     return 1
 

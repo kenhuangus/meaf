@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloudsecurityalliance.org/meaf/meaf-1.0.0.schema.json",
+  "$id": "https://cloudsecurityalliance.org/meaf/meaf-1.1.0.schema.json",
   "title": "MEAF Package",
   "description": "MAESTRO Executable Assurance Framework package schema",
   "type": "object",
@@ -21,7 +21,7 @@
   "properties": {
     "meaf-version": {
       "type": "string",
-      "pattern": "^1\\.0\\.0$"
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
     },
     "package-id": {
       "type": "string",
@@ -233,7 +233,13 @@
           "items": { "type": "string" },
           "minItems": 1
         },
-        "temporal-profile": { "$ref": "#/$defs/temporal-profile" }
+        "temporal-profile": { "$ref": "#/$defs/temporal-profile" },
+        "stage": { "type": "string", "minLength": 1 },
+        "preconditions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
       }
     },
     "attack-path": {
@@ -265,6 +271,16 @@
           },
           "minItems": 1
         }
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "required": ["approved-by", "rationale", "scope"],
+      "additionalProperties": false,
+      "properties": {
+        "approved-by": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 }
       }
     },
     "assurance-contract": {
@@ -315,6 +331,8 @@
         },
         "test": { "$ref": "#/$defs/id-ref" },
         "decision-rule": { "type": "object" },
+        "utility-rule": { "type": "object" },
+        "applicability": { "$ref": "#/$defs/applicability" },
         "required-evidence": {
           "type": "array",
           "items": { "$ref": "#/$defs/id-ref" },
