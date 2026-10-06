@@ -7,7 +7,7 @@ assurance contracts, tests, evidence, findings and gate decisions in one JSON
 artifact — so that when a deployed artifact changes, the claims that depended on
 it stop being true, visibly and automatically.
 
-It is the reference implementation of the appendix of *Security Considerations
+It implements the assurance framework described in *Security Considerations
 for Long-Running Agentic AI Systems*.
 
 > **What it does.** Evaluates whether claims about a declared boundary are
@@ -48,7 +48,7 @@ Three shipped packages exercise the three gate outcomes:
 
 | Package | Gate | What it demonstrates |
 |---|---|---|
-| `covert-influence.json` | `allow` | The manuscript's worked covert-influence threat, fully covered |
+| `covert-influence.json` | `allow` | The worked covert-influence threat, fully covered |
 | `memory-poisoning.json` | `review-required` | A cross-session memory-to-goal chain with one failing contract under a live, time-bounded exception |
 | `broken.json` | `block` | A deliberate error at every one of the six conformance levels, so `validate` exits 1 and the gate blocks before any contract is evaluated |
 
@@ -56,8 +56,8 @@ Three shipped packages exercise the three gate outcomes:
 
 ## Concepts and object model
 
-A MEAF package contains the **nine linked object types** of appendix A.2, plus
-the **assurance contract** of A.3. Full field reference:
+A MEAF package contains the **nine linked object types**, plus
+the **assurance contract**. Full field reference:
 [docs/OBJECT-MODEL.md](docs/OBJECT-MODEL.md).
 
 | # | Object | JSON member | Assurance purpose |
@@ -81,7 +81,7 @@ wrong by collapsing both into `assurance-contracts`.
 > Every control implementation is paired with an assurance contract. A control
 > implementation describes how a threat is mitigated, while an assurance
 > contract defines the evidence and tests required to verify that mitigation
-> works. — appendix A.3
+> works.
 
 **A control implementation is the mechanism.** It answers: what does this thing
 do, where does it run, what does it depend on, is it enforcing or just watching,
@@ -171,8 +171,8 @@ Recommended lifecycle state after the change: suspended
 
 ## The four contract states
 
-An assurance contract is the smallest independently evaluable unit, and appendix
-A.5 gives it exactly four states. Details and the evaluation order:
+An assurance contract is the smallest independently evaluable unit, and it has
+exactly four states. Details and the evaluation order:
 [docs/CONFORMANCE.md](docs/CONFORMANCE.md#contract-states).
 
 | State | Meaning |
@@ -224,7 +224,7 @@ different gate results, and the difference is inspectable.
     // ... high, medium, low
   },
   "indeterminate-handling": {
-    "critical": "fail-closed",         // A.5 requires this choice to be explicit
+    "critical": "fail-closed",         // this choice must be explicit
     "high": "fail-closed",
     "medium": "require-review",
     "low": "require-review"
@@ -282,7 +282,6 @@ refusing is good.
 > Human-readable views are generated from the structured source. Narrative
 > reports, diagrams, and dashboards are projections of the assurance package
 > rather than separately maintained artifacts that can drift from it.
-> — appendix A.1, principle 6
 
 `meaf report` emits Markdown with Mermaid diagrams, byte-deterministic for a
 fixed package, policy and `--now`. Every attack path is drawn with the controls
@@ -324,7 +323,7 @@ Transition granted: assessed -> authorized (gate returns allow under meaf-defaul
 
 Moving **into** containment is never gated: a containment control that a stale
 package can block is not a containment control. Moving **out** of containment
-repeats the authorization guards, because A.8 step 6 requires new authorization
+repeats the authorization guards, because the guard requires new authorization
 evidence before returning to service.
 
 Full transition table with guards: [docs/CONFORMANCE.md](docs/CONFORMANCE.md#lifecycle).
@@ -341,7 +340,7 @@ meaf {validate,gate,summary,report,run-tests,lifecycle,export-oscal,attest,impac
 |---|---|---|
 | `validate` | The six conformance levels | `0` clean, `1` errors |
 | `gate` | Contract states and the deployment decision | `0` allow, `1` block, `2` review-required |
-| `summary` | The eight A.5 summary dimensions | `0` |
+| `summary` | The eight summary dimensions | `0` |
 | `report` | Markdown report with diagrams | `0` |
 | `run-tests` | Execute runners, emit evidence | `0` when everything passed and nothing was left unrun |
 | `lifecycle` | Inspect every guard, or attempt a transition | `0` granted, `1` refused |
@@ -349,7 +348,7 @@ meaf {validate,gate,summary,report,run-tests,lifecycle,export-oscal,attest,impac
 | `attest` | Check or rebind artifact digests | `0` match, `1` drift or missing |
 | `impact` | What a component change would invalidate | `0` |
 | `migrate` | 1.0.0 to 2.0.0 | `0` complete, `1` decisions outstanding |
-| `adoption` | Non-normative A.9 adoption level | `0` |
+| `adoption` | Non-normative adoption level | `0` |
 | `testpacks` | The nine standard test packs | `0` |
 
 Shared flags: `--policy PATH` (default: the shipped bundle), `--now RFC3339`
@@ -396,7 +395,7 @@ perfectly unbiased.
 
 ## OSCAL interoperability
 
-`meaf export-oscal` writes seven OSCAL 1.1.2 documents, following the A.4
+`meaf export-oscal` writes seven OSCAL 1.1.2 documents, following the
 mapping:
 
 | MEAF content | OSCAL model |
@@ -422,7 +421,7 @@ evidence timestamp rather than the wall clock.
 
 ## Standard test packs
 
-The nine packs of appendix A.7 ship as a registry. A test may cite one, and the
+The nine control packs ship as a registry. A test may cite one, and the
 validator checks that the citation resolves.
 
 ```bash
@@ -451,7 +450,7 @@ pack-recovery-readiness  [operational]  layers: L1, L2, L3, L4, L5, L6, L7
 
 ## Adoption
 
-The A.9 sequence, assessed by `meaf adoption`. It is explicitly non-normative:
+The adoption sequence, assessed by `meaf adoption`. It is explicitly non-normative:
 it is guidance for rolling MEAF out, not a conformance level, and reaching
 level 5 is not a claim that a system is secure.
 
@@ -465,7 +464,7 @@ level 5 is not a claim that a system is secure.
 > when a real component change invalidates the correct evidence, automatically
 > selects the relevant tests, blocks or degrades operation according to policy,
 > produces an attributable decision record, and supports recovery to a verified
-> state. — appendix A.9
+> state.
 
 The repository demonstrates exactly that sequence end to end; see
 [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md#8-the-pilot-end-to-end).
@@ -509,7 +508,7 @@ pytest --cov=meaf --cov-branch --cov-report=term-missing
 
 The suite is under [`tests/`](tests/) with one module per unit under test. Beyond
 unit coverage it asserts the properties that make the framework meaningful:
-the object model matches the manuscript clause by clause; `indeterminate` is
+the object model matches the specification clause by clause; `indeterminate` is
 never coerced at any layer; the guard table covers every legal transition; the
 summary contains no aggregate score; exports and reports are deterministic; the
 shipped examples are reproducible from a published demo seed; and the working
@@ -538,7 +537,7 @@ contracts and adds required fields. See
 - **No safety certification.** Conformance is about internal consistency,
   evidence currency and artifact binding.
 - **No aggregate score.** By design.
-- **JSON only.** The manuscript permits YAML and XML serializations; this
+- **JSON only.** The framework permits YAML and XML serializations; this
   implementation reads and writes JSON.
 - **OSCAL shapes, not OSCAL validation.** Exports follow the OSCAL 1.1.2 JSON
   model and its required members, but the upstream schemas are not vendored, so
@@ -551,7 +550,7 @@ contracts and adds required fields. See
 
 ## Provenance
 
-This repository implements the appendix of the MAESTRO long-running-agent threat
-analysis manuscript. Example packages describe a synthetic research assistant and
+This repository implements the assurance framework described in *Security
+Considerations for Long-Running Agentic AI Systems*. Example packages describe a synthetic research assistant and
 a synthetic operations assistant; the artifacts they bind are synthetic
 demonstration files, and no claim is made about any real vendor, model or corpus.
