@@ -8,8 +8,7 @@ artifact — so that when a deployed artifact changes, the claims that depended 
 it stop being true, visibly and automatically.
 
 It is the reference implementation of the appendix of *Security Considerations
-for Long-Running Agentic AI Systems: A Comprehensive Threat Analysis Using the
-MAESTRO Framework*.
+for Long-Running Agentic AI Systems*.
 
 > **What it does.** Evaluates whether claims about a declared boundary are
 > internally consistent, backed by current evidence, and still bound to the
