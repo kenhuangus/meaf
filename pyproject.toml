@@ -8,7 +8,7 @@ version = "2.0.0"
 description = "MAESTRO Executable Assurance Framework: a machine-verifiable assurance layer over the MAESTRO agentic-AI threat taxonomy"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 keywords = [
     "security",
     "assurance",
