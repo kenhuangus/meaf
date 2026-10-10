@@ -12,4 +12,21 @@ venv/
 build/
 dist/
 msg.tmp
-manuscript.md
+
+# Working and review markdown. Negations follow so real docs and example
+# artifacts stay committable even when a name matches a pattern above.
+*review*.md
+*_readout.md
+*CHANGELOG_*.md
+*paper*.md
+*draft*.md
+*manuscript*.md
+prd.md
+*plan*.md
+notes/
+scratch/
+results/generated/
+
+!README.md
+!docs/**/*.md
+!meaf/examples/**
